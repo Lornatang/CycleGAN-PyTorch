@@ -52,18 +52,26 @@ print(opt)
 if torch.cuda.is_available() and not opt.cuda:
   print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
+device = torch.device("cuda:0" if opt.cuda else "cpu")
+
 ###### Definition of variables ######
 # Networks
-netG_A2B = Generator(opt.input_nc, opt.output_nc)
-netG_B2A = Generator(opt.output_nc, opt.input_nc)
-netD_A = Discriminator(opt.input_nc)
-netD_B = Discriminator(opt.output_nc)
+if torch.cuda.device_count() > 1:
+  netG_A2B = torch.nn.DataParallel(Generator(opt.input_nc, opt.output_nc))
 
-if opt.cuda:
-  netG_A2B.cuda()
-  netG_B2A.cuda()
-  netD_A.cuda()
-  netD_B.cuda()
+  netG_B2A = torch.nn.DataParallel(Generator(opt.output_nc, opt.input_nc))
+  netD_A = torch.nn.DataParallel(Discriminator(opt.input_nc))
+  netD_B = torch.nn.DataParallel(Discriminator(opt.output_nc))
+else:
+  netG_A2B = Generator(opt.input_nc, opt.output_nc)
+  netG_B2A = Generator(opt.output_nc, opt.input_nc)
+  netD_A = Discriminator(opt.input_nc)
+  netD_B = Discriminator(opt.output_nc)
+
+netG_A2B.to(device)
+netG_B2A.to(device)
+netD_A.to(device)
+netD_B.to(device)
 
 netG_A2B.apply(weights_init_normal)
 netG_B2A.apply(weights_init_normal)
