@@ -12,6 +12,7 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Model neural network"""
 
 import torch.nn as nn
 import torch.nn.functional as F
