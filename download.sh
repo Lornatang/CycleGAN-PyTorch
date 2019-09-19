@@ -35,7 +35,3 @@ mv "$TARGET_DIR/trainA" "$TARGET_DIR/train/A"
 mv "$TARGET_DIR/trainB" "$TARGET_DIR/train/B"
 mv "$TARGET_DIR/testA" "$TARGET_DIR/test/A"
 mv "$TARGET_DIR/testB" "$TARGET_DIR/test/B"
-
-
-# Download training data in advance
-
