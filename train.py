@@ -23,16 +23,20 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.nn.parallel
+import torch.nn.parallel
+import torch.optim
 import torch.optim
 import torch.utils.data
+import torch.utils.data
+import torch.utils.data.distributed
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
-from PIL import Image
+import torchvision.utils as vutils
+from tqdm import tqdm
 
 from cyclegan_pytorch import Discriminator
 from cyclegan_pytorch import Generator
 from cyclegan_pytorch import ImageDataset
-from cyclegan_pytorch import LambdaLR
 from cyclegan_pytorch import ReplayBuffer
 from cyclegan_pytorch import weights_init_normal
 
@@ -105,8 +109,8 @@ def main():
                       "from checkpoints.")
 
     if args.gpu is not None:
-        warnings.warn("You have chosen a specific GPU. This will completely "
-                      "disable data parallelism.")
+        warnings.warn(
+            "You have chosen a specific GPU. This will completely disable data parallelism.")
 
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])
@@ -201,9 +205,9 @@ def main_worker(gpu, ngpus_per_node, args):
     netD_B.apply(weights_init_normal)
 
     # define loss function (adversarial_loss) and optimizer
-    adversarial_loss = torch.nn.MSELoss()
-    cycle_loss = torch.nn.L1Loss()
-    identity_loss = torch.nn.L1Loss()
+    adversarial_loss = torch.nn.MSELoss().cuda(args.gpu)
+    cycle_loss = torch.nn.L1Loss().cuda(args.gpu)
+    identity_loss = torch.nn.L1Loss().cuda(args.gpu)
 
     # Optimizers
     optimizer_G = torch.optim.Adam(itertools.chain(netG_A2B.parameters(), netG_B2A.parameters()),
@@ -213,30 +217,15 @@ def main_worker(gpu, ngpus_per_node, args):
     optimizer_D_B = torch.optim.Adam(netD_B.parameters(), lr=args.lr,
                                      betas=(args.beta1, args.beta2))
 
-    # LR schedulers
-    lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G,
-                                                       lr_lambda=LambdaLR(args.epochs,
-                                                                          args.start_epoch,
-                                                                          args.decay_epoch).step)
-    lr_scheduler_D_A = torch.optim.lr_scheduler.LambdaLR(optimizer_D_A,
-                                                         lr_lambda=LambdaLR(args.epochs,
-                                                                            args.start_epoch,
-                                                                            args.decay_epoch).step)
-    lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B,
-                                                         lr_lambda=LambdaLR(args.epochs,
-                                                                            args.start_epoch,
-                                                                            args.decay_epoch).step)
-
     cudnn.benchmark = True
 
     # Dataset
     dataset = ImageDataset(args.dataroot,
                            transform=transforms.Compose(
-                               [transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
-                                transforms.RandomCrop(args.image_size),
+                               [transforms.Resize(args.image_size),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                                transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
                                 ]),
                            unaligned=True)
 
@@ -264,8 +253,12 @@ def main_worker(gpu, ngpus_per_node, args):
                 real_images_B = real_images_B.cuda(args.gpu, non_blocking=True)
 
             # real data label is 1, fake data label is 0.
-            real_label = torch.full((real_images_A.size(0),), 1, requires_grad=False)
-            fake_label = torch.full((real_images_B.size(0),), 0, requires_grad=False)
+            real_label = torch.full((real_images_A.size(0), 1), 1, requires_grad=False)
+            fake_label = torch.full((real_images_B.size(0), 1), 0, requires_grad=False)
+
+            if args.gpu is not None:
+                real_label = real_label.cuda(args.gpu, non_blocking=True)
+                fake_label = fake_label.cuda(args.gpu, non_blocking=True)
 
             fake_A_buffer = ReplayBuffer()
             fake_B_buffer = ReplayBuffer()
@@ -285,19 +278,19 @@ def main_worker(gpu, ngpus_per_node, args):
 
             # GAN loss
             fake_B = netG_A2B(real_images_A)
-            fake_output_B = netD_B(real_images_B)
+            fake_output_B = netD_B(fake_B)
             loss_GAN_A2B = adversarial_loss(fake_output_B, real_label)
 
-            fake_A = netG_B2A(real_B)
-            fake_A = netD_A(fake_A)
-            loss_GAN_B2A = adversarial_loss(fake_A, real_label)
+            fake_A = netG_B2A(real_images_B)
+            fake_output_A = netD_A(fake_A)
+            loss_GAN_B2A = adversarial_loss(fake_output_A, real_label)
 
             # Cycle loss
             recovered_A = netG_B2A(fake_B)
-            loss_cycle_ABA = cycle_loss(recovered_A, real_A) * 10.0
+            loss_cycle_ABA = cycle_loss(recovered_A, real_images_A) * 10.0
 
             recovered_B = netG_A2B(fake_A)
-            loss_cycle_BAB = cycle_loss(recovered_B, real_B) * 10.0
+            loss_cycle_BAB = cycle_loss(recovered_B, real_images_B) * 10.0
 
             # Total loss
             errG = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A + loss_cycle_ABA + loss_cycle_BAB
@@ -311,13 +304,13 @@ def main_worker(gpu, ngpus_per_node, args):
             optimizer_D_A.zero_grad()
 
             # Real A image loss
-            real_output_A = netD_A(real_A)
+            real_output_A = netD_A(real_images_A)
             D_x_A = adversarial_loss(real_output_A, real_label)
 
             # Fake A image loss
             fake_A = fake_A_buffer.push_and_pop(fake_A)
-            fake_A = netD_A(fake_A.detach())
-            errD_fake_A = adversarial_loss(fake_A, fake_label)
+            fake_output_A = netD_A(fake_A.detach())
+            errD_fake_A = adversarial_loss(fake_output_A, fake_label)
 
             # Total A image loss
             loss_D_A = (D_x_A + errD_fake_A) / 2
@@ -326,12 +319,12 @@ def main_worker(gpu, ngpus_per_node, args):
             optimizer_D_A.step()
 
             ##############################################
-            # (3) Update D network: Discriminator A
+            # (3) Update D network: Discriminator B
             ##############################################
             optimizer_D_B.zero_grad()
 
             # Real B image loss
-            real_output_B = netD_B(real_B)
+            real_output_B = netD_B(real_images_B)
             D_x_B = adversarial_loss(real_output_B, real_label)
 
             # Fake B image loss
@@ -344,13 +337,6 @@ def main_worker(gpu, ngpus_per_node, args):
             loss_D_B.backward()
             # Update D for B
             optimizer_D_B.step()
-
-            ##############################################
-            # (4) Update learning rates
-            ##############################################
-            lr_scheduler_G.step()
-            lr_scheduler_D_A.step()
-            lr_scheduler_D_B.step()
 
             progress_bar.set_description(
                 f"[{epoch}/{args.epochs - 1}][{i}/{len(dataloader) - 1}] "
