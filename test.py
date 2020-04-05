@@ -1,69 +1,130 @@
-"""General-purpose test script for image-to-image translation.
-
-Once you have trained your model with train.py, you can use this script to test the model.
-It will load a saved model from --checkpoints_dir and save the results to --results_dir.
-
-It first creates model and dataset given the option. It will hard-code some parameters.
-It then runs inference for --num_test images and save results to an HTML file.
-
-Example (You need to train models first or download pre-trained models from our website):
-    Test a CycleGAN model (both sides):
-        python test.py --dataroot ./datasets/maps --name maps_cyclegan --model cycle_gan
-
-    Test a CycleGAN model (one side only):
-        python test.py --dataroot datasets/horse2zebra/testA --name horse2zebra_pretrained --model test --no_dropout
-
-    The option '--model test' is used for generating CycleGAN results only for one side.
-    This option will automatically set '--dataset_mode single', which only loads the images from one set.
-    On the contrary, using '--model cycle_gan' requires loading and generating results in both directions,
-    which is sometimes unnecessary. The results will be saved at ./results/.
-    Use '--results_dir <directory_path_to_save_result>' to specify the results directory.
-
-    Test a pix2pix model:
-        python test.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix --direction BtoA
-
-See options/base_options.py and options/test_options.py for more test options.
-See training and test tips at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/tips.md
-See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/qa.md
-"""
+# Copyright 2020 Lorna Authors. All Rights Reserved.
+# Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+import argparse
+import itertools
 import os
-from options.test_options import TestOptions
-from data import create_dataset
-from models import create_model
-from util.visualizer import save_images
-from util import html
+import random
+import warnings
+
+import torch
+import torch.backends.cudnn as cudnn
+import torch.distributed as dist
+import torch.multiprocessing as mp
+import torch.nn as nn
+import torch.nn.parallel
+import torch.optim
+import torch.utils.data
+import torch.utils.data.distributed
+import torchvision.transforms as transforms
+from PIL import Image
+
+from cyclegan_pytorch import Generator
+from cyclegan_pytorch import ImageDataset
+
+parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
+parser.add_argument("--dataroot", type=str, default="./data/horse2zebra/",
+                    help="path to datasets")
+parser.add_argument("-j", "--workers", default=4, type=int, metavar="N",
+                    help="number of data loading workers ``default:4``")
+parser.add_argument("--netG_A2B", default="./weights/netG_A2B.pth", type=str, metavar="PATH",
+                    help="path to latest generator checkpoint "
+                         "``default:'./weights/netG_A2B.pth'``.")
+parser.add_argument("--netG_B2A", default="./weights/netG_B2A.pth", type=str, metavar="PATH",
+                    help="path to latest discriminator checkpoint. "
+                         "``default:'./weights/netG_B2A.pth'``.")
+parser.add_argument("--dist-backend", default="nccl", type=str,
+                    help="distributed backend")
+parser.add_argument("--outf", default="./gen",
+                    help="folder to output images. ``default:'./gen'``.")
+parser.add_argument("--image-size", type=int, default=256,
+                    help="size of the data crop (squared assumed)")
+parser.add_argument("--gpu", default=0, type=int,
+                    help="GPU id to use.")
+parser.add_argument("--seed", default=None, type=int,
+                    help="seed for initializing training.")
+
+fixed_noise_A = torch.randn(args.batch_size, 3, args.image_size, args.image_size)
+fixed_noise_B = torch.randn(args.batch_size, 3, args.image_size, args.image_size)
 
 
-if __name__ == '__main__':
-    opt = TestOptions().parse()  # get test options
-    # hard-code some parameters for test
-    opt.num_threads = 0   # test code only supports num_threads = 1
-    opt.batch_size = 1    # test code only supports batch_size = 1
-    opt.serial_batches = True  # disable data shuffling; comment this line if results on randomly chosen images are needed.
-    opt.no_flip = True    # no flip; comment this line if results on flipped images are needed.
-    opt.display_id = -1   # no visdom display; the test code saves the results to a HTML file.
-    dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
-    model = create_model(opt)      # create a model given opt.model and other options
-    model.setup(opt)               # regular setup: load and print networks; create schedulers
-    # create a website
-    web_dir = os.path.join(opt.results_dir, opt.name, '{}_{}'.format(opt.phase, opt.epoch))  # define the website directory
-    if opt.load_iter > 0:  # load_iter is 0 by default
-        web_dir = '{:s}_iter{:d}'.format(web_dir, opt.load_iter)
-    print('creating web directory', web_dir)
-    webpage = html.HTML(web_dir, 'Experiment = %s, Phase = %s, Epoch = %s' % (opt.name, opt.phase, opt.epoch))
-    # test with eval mode. This only affects layers like batchnorm and dropout.
-    # For [pix2pix]: we use batchnorm and dropout in the original pix2pix. You can experiment it with and without eval() mode.
-    # For [CycleGAN]: It should not affect CycleGAN as CycleGAN uses instancenorm without dropout.
-    if opt.eval:
-        model.eval()
-    for i, data in enumerate(dataset):
-        if i >= opt.num_test:  # only apply our model to opt.num_test images.
-            break
-        model.set_input(data)  # unpack data from data loader
-        model.test()           # run inference
-        visuals = model.get_current_visuals()  # get image results
-        img_path = model.get_image_paths()     # get image paths
-        if i % 5 == 0:  # save images to an HTML file
-            print('processing (%04d)-th image... %s' % (i, img_path))
-        save_images(webpage, visuals, img_path, aspect_ratio=opt.aspect_ratio, width=opt.display_winsize)
-    webpage.save()  # save the HTML
+def test():
+    try:
+        os.makedirs(args.outf)
+        os.makedirs(os.path.join(args.outf, "A"))
+        os.makedirs(os.path.join(args.outf, "B"))
+    except OSError:
+        pass
+
+    if args.seed is not None:
+        random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        cudnn.deterministic = True
+        warnings.warn("You have chosen to seed training. "
+                      "This will turn on the CUDNN deterministic setting, "
+                      "which can slow down your training considerably! "
+                      "You may see unexpected behavior when restarting "
+                      "from checkpoints.")
+
+    if args.gpu is not None:
+        warnings.warn("You have chosen a specific GPU. This will completely "
+                      "disable data parallelism.")
+
+    # create model
+    netG_A2B = Generator(3, 3)
+    netG_B2A = Generator(3, 3)
+
+    # move to GPU
+    torch.cuda.set_device(args.gpu)
+    netG_A2B = netG_A2B.cuda(args.gpu)
+    netG_B2A = netG_B2A.cuda(args.gpu)
+
+    # Load state dicts
+    netG_A2B.load_state_dict(torch.load(args.netG_A2B))
+    netG_B2A.load_state_dict(torch.load(args.netG_B2A))
+
+    # Set model mode
+    netG_A2B.eval()
+    netG_B2A.eval()
+
+    dataset = ImageDataset(args.dataroot,
+                           transform=transforms.Compose(
+                               [transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                                ]),
+                           mode="test")
+
+    dataloader = torch.utils.data.DataLoader(dataset,
+                                             batch_size=args.batch_size,
+                                             shuffle=True,
+                                             num_workers=int(args.workers))
+
+    progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
+
+    for i, data in progress_bar:
+        # get batch size data
+        real_images_A = data["A"]
+        real_images_B = data["B"]
+        if args.gpu is not None:
+            real_images_A = real_images_A.cuda(args.gpu, non_blocking=True)
+            real_images_B = real_images_B.cuda(args.gpu, non_blocking=True)
+
+        # Generate output
+        fake_A = 0.5 * (netG_B2A(real_images_B).data + 1.0)
+        fake_B = 0.5 * (netG_A2B(real_images_A).data + 1.0)
+
+        # Save image files
+        save_image(fake_A, f"gen/A/{i + 1:04d}.png", normalize=True)
+        save_image(fake_B, f"gen/B/{i + 1:04d}.png", normalize=True)
+
+        progress_bar.set_description(f"Generated images {i + 1:04d} of {len(dataloader):04d}")
