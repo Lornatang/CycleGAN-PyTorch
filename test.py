@@ -54,9 +54,6 @@ parser.add_argument("--gpu", default=0, type=int,
 parser.add_argument("--seed", default=None, type=int,
                     help="seed for initializing training.")
 
-fixed_noise_A = torch.randn(args.batch_size, 3, args.image_size, args.image_size)
-fixed_noise_B = torch.randn(args.batch_size, 3, args.image_size, args.image_size)
-
 
 def test():
     try:
