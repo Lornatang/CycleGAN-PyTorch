@@ -47,60 +47,48 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, nz, nc, res_blocks=9):
+    def __init__(self, in_channels, out_channels, n_residual_blocks=9):
         super(Generator, self).__init__()
 
-        self.head = nn.Sequential(
-            nn.ReflectionPad2d(3),
-            nn.Conv2d(nz, 64, 7),
-            nn.InstanceNorm2d(64),
-            nn.ReLU(inplace=True),
-        )
+        # Initial convolution block
+        layers = [nn.ReflectionPad2d(3),
+                  nn.Conv2d(in_channels, 64, 7),
+                  nn.InstanceNorm2d(64),
+                  nn.ReLU(inplace=True)]
 
         # Downsampling
-        downsampling = []
-        in_channels = 64
-        out_channels = in_channels * 2
+        in_features = 64
+        out_features = in_features * 2
         for _ in range(2):
-            downsampling = [nn.Conv2d(in_channels, out_channels, 3, stride=2, padding=1),
-                            nn.InstanceNorm2d(out_channels),
-                            nn.ReLU(inplace=True)]
-            in_channels = out_channels
-            out_channels = in_channels * 2
-        self.downsample = nn.Sequential(*downsampling)
+            layers += [nn.Conv2d(in_features, out_features, 3, stride=2, padding=1),
+                       nn.InstanceNorm2d(out_features),
+                       nn.ReLU(inplace=True)]
+            in_features = out_features
+            out_features = in_features * 2
 
         # Residual blocks
-        res_block = []
-        for _ in range(res_blocks):
-            res_block += [ResidualBlock(in_channels)]
-        self.res = nn.Sequential(*res_block)
+        for _ in range(n_residual_blocks):
+            layers += [ResidualBlock(in_features)]
 
         # Upsampling
-        upsampling = []
-        out_channels = in_channels // 2
+        out_features = in_features // 2
         for _ in range(2):
-            upsampling += [nn.ConvTranspose2d(in_channels, out_channels, 3, stride=2, padding=1,
-                                              output_padding=1),
-                           nn.InstanceNorm2d(out_channels),
-                           nn.ReLU(inplace=True)]
-            in_channels = out_channels
-            out_channels = in_channels // 2
-        self.upsample = nn.Sequential(*upsampling)
+            layers += [nn.ConvTranspose2d(in_features, out_features, 3, stride=2, padding=1,
+                                          output_padding=1),
+                       nn.InstanceNorm2d(out_features),
+                       nn.ReLU(inplace=True)]
+            in_features = out_features
+            out_features = in_features // 2
 
         # Output layer
-        self.tail = nn.Sequential(
-            nn.ReflectionPad2d(3),
-            nn.Conv2d(64, nc, 7),
-            nn.Tanh(),
-        )
+        layers += [nn.ReflectionPad2d(3),
+                   nn.Conv2d(64, out_channels, 7),
+                   nn.Tanh()]
+
+        self.main = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.head(x)
-        x = self.downsample(x)
-        x = self.res(x)
-        x = self.upsample(x)
-        x = self.tail(x)
-        return x
+        return self.main(x)
 
 
 class ResidualBlock(nn.Module):

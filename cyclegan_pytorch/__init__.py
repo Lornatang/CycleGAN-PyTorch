@@ -11,12 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 from .datasets import ImageDataset
 from .models import Discriminator
 from .models import Generator
-from .utils import LambdaLR
-from .utils import Logger
 from .utils import ReplayBuffer
 from .utils import weights_init_normal
 
@@ -24,5 +21,6 @@ __all__ = [
     "ImageDataset",
     "Discriminator",
     "Generator",
-    ""
+    "ReplayBuffer",
+    "weights_init_normal",
 ]

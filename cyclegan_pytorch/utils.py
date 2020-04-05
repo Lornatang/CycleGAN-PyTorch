@@ -55,16 +55,3 @@ class ReplayBuffer:
                 else:
                     to_return.append(element)
         return Variable(torch.cat(to_return))
-
-
-class LambdaLR:
-    def __init__(self, epochs, offset, warmup_epoch):
-        decay_flag = epochs - warmup_epoch
-        assert (decay_flag > 0), "Decay must start before the training session ends!"
-        self.n_epochs = epochs
-        self.offset = offset
-        self.warmup_epoch = warmup_epoch
-
-    def step(self, epoch):
-        return 1.0 - max(0, epoch + self.offset - self.warmup_epoch) / (
-                    self.n_epochs - self.warmup_epoch)
