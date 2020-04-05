@@ -82,9 +82,6 @@ parser.add_argument("--multiprocessing-distributed", action="store_true",
                          "fastest way to use PyTorch for either single node or "
                          "multi node data parallel training")
 
-fixed_noise_A = torch.randn(args.batch_size, 3, args.image_size, args.image_size)
-fixed_noise_B = torch.randn(args.batch_size, 3, args.image_size, args.image_size)
-
 
 def main():
     args = parser.parse_args()
@@ -252,9 +249,6 @@ def main_worker(gpu, ngpus_per_node, args):
 
     for epoch in range(args.start_epoch, args.epochs):
 
-        global fixed_noise_A
-        global fixed_noise_B
-
         # switch to train mode
         netG_A2B.train()
         netG_B2A.train()
@@ -398,3 +392,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 torch.save(netG_B2A.state_dict(), "weights/netG_B2A.pth")
                 torch.save(netD_A.state_dict(), "weights/netD_A.pth")
                 torch.save(netD_B.state_dict(), "weights/netD_B.pth")
+
+
+if __name__ == '__main__':
+    main()
