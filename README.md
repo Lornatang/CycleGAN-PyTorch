@@ -1,33 +1,26 @@
 # CycleGAN-PyTorch
 
 ### Overview
-This repository contains an op-for-op PyTorch reimplementation of [Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks](http://xxx.itp.ac.cn/pdf/1511.06434).
-
-The goal of this implementation is to be simple, highly extensible, and easy to integrate into your own projects. This implementation is a work in progress -- new features are currently being implemented.  
-
-At the moment, you can easily:  
- * Load pretrained Generate models 
- * Use Generate models for extended dataset
-
-_Upcoming features_: In the next few days, you will be able to:
- * Quickly finetune an Generate on your own dataset
- * Export Generate models for production
+This repository contains an op-for-op PyTorch reimplementation of [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks](https://arxiv.org/abs/1703.10593).
 
 ### Table of contents
-1. [About Deep Convolutional Generative Adversarial Networks](#about-deep-convolutional-generative-adversarial-networks)
+1. [About Cycle Generative Adversarial Networks](#about-cycle-generative-adversarial-networks)
 2. [Model Description](#model-description)
 3. [Installation](#installation)
-4. [Usage](#usage)
-    * [Load pretrained models](#loading-pretrained-models)
-    * [Example: Extended dataset](#example-extended-dataset)
-    * [Example: Visual](#example-visual)
+    * [Clone and install requirements](#clone-and-install-requirements)
+    * [Download pretrained weights](#download-pretrained-weights)
+    * [Download dataset](#download-dataset)
+4. [Test](#test)
+4. [Train](#train)
+    * [Example (horse2zebra)](#example-horse2zebra)
 5. [Contributing](#contributing) 
+6. [Credit](#credit)
 
-### About Deep Convolutional Generative Adversarial Networks
+### About Cycle Generative Adversarial Networks
 
 If you're new to DCGAN, here's an abstract straight from the paper:
 
-In recent years, supervised learning with convolutional networks (CNNs) has seen huge adoption in computer vision applications. Comparatively, unsupervised learning with CNNs has received less attention. In this work we hope to help bridge the gap between the success of CNNs for supervised learning and unsupervised learning. We introduce a class of CNNs called deep convolutional generative adversarial networks (DCGANs), that have certain architectural constraints, and demonstrate that they are a strong candidate for unsupervised learning. Training on various image datasets, we show convincing evidence that our deep convolutional adversarial pair learns a hierarchy of representations from object parts to scenes in both the generator and discriminator. Additionally, we use the learned features for novel tasks - demonstrating their applicability as general image representations.
+Image-to-image translation is a class of vision and graphics problems where the goal is to learn the mapping between an input image and an output image using a training set of aligned image pairs. However, for many tasks, paired training data will not be available. We present an approach for learning to translate an image from a source domain X to a target domain Y in the absence of paired examples. Our goal is to learn a mapping G:X→Y such that the distribution of images from G(X) is indistinguishable from the distribution Y using an adversarial loss. Because this mapping is highly under-constrained, we couple it with an inverse mapping F:Y→X and introduce a cycle consistency loss to push F(G(X))≈X (and vice versa). Qualitative results are presented on several tasks where paired training data does not exist, including collection style transfer, object transfiguration, season transfer, photo enhancement, etc. Quantitative comparisons against several prior methods demonstrate the superiority of our approach.
 
 ### Model Description
 
@@ -35,76 +28,87 @@ We have two networks, G (Generator) and D (Discriminator).The Generator is a net
 
 ### Installation
 
-Install from pypi:
+#### Clone and install requirements
+
 ```bash
-$ pip3 install cycle_pytorch
+$ git clone https://github.com/Lornatang/CycleGAN_PyTorch
+$ cd CycleGAN_PyTorch/
+$ pip3 install -r requirements.txt
 ```
 
-Install from source:
+#### Download pretrained weights
+
 ```bash
-$ git clone https://github.com/Lornatang/CycleGAN-PyTorch.git
-$ cd CycleGAN-PyTorch
-$ pip3 install -e .
-``` 
-
-### Usage
-
-#### Loading pretrained models
-
-Load an Deep-Convolutional-Generative-Adversarial-Networks:
-```python
-from dcgan_pytorch import Generator
-model = Generator.from_name("g-mnist")
+$ cd weights/
+$ bash download_weights.sh <datasets-name>
 ```
 
-Load a pretrained Deep-Convolutional-Generative-Adversarial-Networks:
-```python
-from dcgan_pytorch import Generator
-model = Generator.from_pretrained("g-mnist")
+#### Download dataset
+
+```bash
+$ cd data/
+$ bash get_dataset.sh <datasets-name>
 ```
 
-#### Example: Extended dataset
+### Test
 
-As mentioned in the example, if you load the pre-trained weights of the MNIST dataset, it will create a new `imgs` directory and generate 64 random images in the `imgs` directory.
+Using pre training model to generate pictures.
 
-```python
-import os
-import torch
-import torchvision.utils as vutils
-from dcgan_pytorch import Generator
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-model = Generator.from_pretrained("g-mnist")
-model.to(device)
-# switch to evaluate mode
-model.eval()
-
-try:
-    os.makedirs("./imgs")
-except OSError:
-    pass
-
-with torch.no_grad():
-    for i in range(64):
-        noise = torch.randn(64, 100, 1, 1, device=device)
-        fake = model(noise)
-        vutils.save_image(fake.detach(), f"./imgs/fake_{i:04d}.png", normalize=True)
-    print("The fake image has been generated!")
+```bash
+$ python3 test.py --netG_A2B weights/horse2zebra/netG_A2B.pth --netG_B2A weights/horse2zebra/netG_B2A.pth
 ```
 
-#### Example: Visual
+### Train
 
-```text
-cd $REPO$/framework
-sh start.sh
+```bash
+usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
+                [--start-epoch N] [--decay-epoch DECAY_EPOCH] [-b N] [--lr LR]
+                [--beta1 BETA1] [--beta2 BETA2] [-p N]
+                [--world-size WORLD_SIZE] [--rank RANK] [--dist-url DIST_URL]
+                [--dist-backend DIST_BACKEND] [--outf OUTF]
+                [--image-size IMAGE_SIZE] [--seed SEED] [--gpu GPU]
+                [--multiprocessing-distributed]
 ```
 
-Then open the browser and type in the browser address [http://127.0.0.1:10001/](http://127.0.0.1:10001/).
-Enjoy it.
+#### Example (horse2zebra)
+
+```bash
+$ python3 train.py --dataroot horse2zebra
+```
 
 ### Contributing
 
 If you find a bug, create a GitHub issue, or even better, submit a pull request. Similarly, if you have questions, simply post them as GitHub issues.   
 
 I look forward to seeing what the community does with these models! 
+
+### Credit
+
+#### Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks
+_Jun-Yan Zhu, Taesung Park, Phillip Isola, Alexei A. Efros_ <br>
+
+**Abstract** <br>
+Image-to-image translation is a class of vision and graphics problems where the goal 
+is to learn the mapping between an input image and an output image using a training 
+set of aligned image pairs. However, for many tasks, paired training data will not be 
+available. We present an approach for learning to translate an image from a source 
+domain X to a target domain Y in the absence of paired examples. Our goal is to learn 
+a mapping G:X→Y such that the distribution of images from G(X) is indistinguishable
+from the distribution Y using an adversarial loss. Because this mapping is highly
+under-constrained, we couple it with an inverse mapping F:Y→X and introduce a cycle 
+consistency loss to push F(G(X))≈X (and vice versa). Qualitative results are presented 
+on several tasks where paired training data does not exist, including collection 
+style transfer, object transfiguration, season transfer, photo enhancement, etc. 
+Quantitative comparisons against several prior methods demonstrate the superiority
+of our approach.
+
+[[Paper]](https://arxiv.org/pdf/1703.10593)) [[Authors' Implementation]](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
+
+```
+@inproceedings{CycleGAN2017,
+  title={Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networkss},
+  author={Zhu, Jun-Yan and Park, Taesung and Isola, Phillip and Efros, Alexei A},
+  booktitle={Computer Vision (ICCV), 2017 IEEE International Conference on},
+  year={2017}
+}
+```
