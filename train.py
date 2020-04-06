@@ -96,10 +96,17 @@ def main():
 
     try:
         os.makedirs(args.outf)
+    except OSError:
+        pass
+
+    try:
         os.makedirs(os.path.join(args.outf, "A"))
         os.makedirs(os.path.join(args.outf, "B"))
-        os.makedirs("weights")
-        os.makedirs(os.path.join("weights", args.name))
+    except OSError:
+        pass
+
+    try:
+        os.makedirs(os.path.join("weights", str(args.name)))
     except OSError:
         pass
 
