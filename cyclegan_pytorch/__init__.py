@@ -15,12 +15,12 @@ from .datasets import ImageDataset
 from .models import Discriminator
 from .models import Generator
 from .utils import ReplayBuffer
-from .utils import weights_init_normal
+from .utils import weights_init
 
 __all__ = [
     "ImageDataset",
     "Discriminator",
     "Generator",
     "ReplayBuffer",
-    "weights_init_normal",
+    "weights_init",
 ]
