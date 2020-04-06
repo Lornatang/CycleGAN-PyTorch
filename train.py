@@ -32,6 +32,7 @@ import torch.utils.data.distributed
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
+from PIL import Image
 from tqdm import tqdm
 
 from cyclegan_pytorch import Discriminator
@@ -49,8 +50,6 @@ parser.add_argument("--epochs", default=200, type=int, metavar="N",
                     help="number of total epochs to run")
 parser.add_argument("--start-epoch", default=0, type=int, metavar="N",
                     help="manual epoch number (useful on restarts)")
-parser.add_argument("--decay-epoch", type=int, default=100,
-                    help="epoch to start linearly decaying the learning rate to 0")
 parser.add_argument("-b", "--batch-size", default=1, type=int,
                     metavar="N",
                     help="mini-batch size (default: 1), this is the total "
@@ -222,10 +221,11 @@ def main_worker(gpu, ngpus_per_node, args):
     # Dataset
     dataset = ImageDataset(args.dataroot,
                            transform=transforms.Compose(
-                               [transforms.Resize(args.image_size),
+                               [transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
+                                transforms.RandomCrop(args.image_size),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(),
-                                transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                 ]),
                            unaligned=True)
 
@@ -234,8 +234,6 @@ def main_worker(gpu, ngpus_per_node, args):
                                              shuffle=True,
                                              num_workers=int(args.workers))
 
-    progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
-
     for epoch in range(args.start_epoch, args.epochs):
 
         # switch to train mode
@@ -243,6 +241,8 @@ def main_worker(gpu, ngpus_per_node, args):
         netG_B2A.train()
         netD_A.train()
         netD_B.train()
+
+        progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
 
         for i, data in progress_bar:
             # get batch size data
@@ -364,20 +364,20 @@ def main_worker(gpu, ngpus_per_node, args):
                                   f"{args.outf}/B/fake_samples_epoch_{epoch}.png",
                                   normalize=True)
 
-            if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                                                        and args.rank % ngpus_per_node == 0):
-                # do checkpointing
-                torch.save(netG_A2B.state_dict(), f"weights/netG_A2B_epoch_{epoch}.pth")
-                torch.save(netG_B2A.state_dict(), f"weights/netG_B2A_epoch_{epoch}.pth")
-                torch.save(netD_A.state_dict(), f"weights/netD_A_epoch_{epoch}.pth")
-                torch.save(netD_B.state_dict(), f"weights/netD_B_epoch_{epoch}.pth")
+        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
+                                                    and args.rank % ngpus_per_node == 0):
+            # do checkpointing
+            torch.save(netG_A2B.state_dict(), f"weights/netG_A2B_epoch_{epoch}.pth")
+            torch.save(netG_B2A.state_dict(), f"weights/netG_B2A_epoch_{epoch}.pth")
+            torch.save(netD_A.state_dict(), f"weights/netD_A_epoch_{epoch}.pth")
+            torch.save(netD_B.state_dict(), f"weights/netD_B_epoch_{epoch}.pth")
 
-                # save last checkpoint
-            if epoch == args.epochs - 1:
-                torch.save(netG_A2B.state_dict(), "weights/netG_A2B.pth")
-                torch.save(netG_B2A.state_dict(), "weights/netG_B2A.pth")
-                torch.save(netD_A.state_dict(), "weights/netD_A.pth")
-                torch.save(netD_B.state_dict(), "weights/netD_B.pth")
+            # save last checkpoint
+        if epoch == args.epochs - 1:
+            torch.save(netG_A2B.state_dict(), "weights/netG_A2B.pth")
+            torch.save(netG_B2A.state_dict(), "weights/netG_B2A.pth")
+            torch.save(netD_A.state_dict(), "weights/netD_A.pth")
+            torch.save(netD_B.state_dict(), "weights/netD_B.pth")
 
 
 if __name__ == '__main__':
