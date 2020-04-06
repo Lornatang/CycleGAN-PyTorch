@@ -50,7 +50,7 @@ $ cd data/
 $ bash get_dataset.sh <datasets-name>
 ```
 
-### Test
+### Test (e.g horse2zebra)
 
 Using pre training model to generate pictures.
 
