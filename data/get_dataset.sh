@@ -8,11 +8,10 @@ if [[ ${FILE} != "ae_photos" && ${FILE} != "apple2orange" && ${FILE} != "summer2
 fi
 
 URL=https://people.eecs.berkeley.edu/~taesung_park/CycleGAN/datasets/${FILE}.zip
-ZIP_FILE=./datasets/${FILE}.zip
-TARGET_DIR=./datasets/${FILE}
-mkdir -p ./datasets
-wget -N ${URL} -O ${ZIP_FILE}
-unzip ${ZIP_FILE} -d ./datasets/
+ZIP_FILE=${FILE}.zip
+TARGET_DIR=${FILE}
+wget ${URL}
+unzip ${ZIP_FILE}
 rm ${ZIP_FILE}
 
 # Adapt to project expected directory heriarchy
