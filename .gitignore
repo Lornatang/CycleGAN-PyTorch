@@ -122,17 +122,7 @@ dmypy.json
 
 # custom
 data/horse2zebra
-examples/cifar/data
-examples/imagenet/data/train
-examples/imagenet/data/test
-examples/imagenet/data/val
-examples/imagenet/data/labels_map.txt
-research/data
-framework/static/mnist
-framework/static/fmnist
-framework/static/cifar
-framework/static/imagenet
-checkpoints
-example/*.pth
-example/data
-example/imgs
+data/horse2zebra.tgz
+outputs/
+weights/*.pth
+
