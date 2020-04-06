@@ -43,11 +43,11 @@ from cyclegan_pytorch import weights_init
 
 parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
 parser.add_argument("--dataroot", type=str, default="./data",
-                    help="path to datasets. (default:./data)")
+                    help="path to datasets. (default:`./data`)")
 parser.add_argument("name", type=str,
                     help="dataset name. "
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
-                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, cityscapes, facades, "
+                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, facades, "
                          "iphone2dslr_flower, ae_photos]")
 parser.add_argument("-j", "--workers", default=4, type=int, metavar="N",
                     help="number of data loading workers. (default:4)")
@@ -63,7 +63,7 @@ parser.add_argument("-b", "--batch-size", default=1, type=int,
 parser.add_argument("--lr", type=float, default=0.0002,
                     help="learning rate. (default:0.0002)")
 parser.add_argument("--beta1", type=float, default=0.5,
-                    help="beta1 for adam. (default:0.5)`")
+                    help="beta1 for adam. (default:0.5)")
 parser.add_argument("--beta2", type=float, default=0.999,
                     help="beta2 for adam. (default:0.999)")
 parser.add_argument("-p", "--print-freq", default=100, type=int,
@@ -76,18 +76,18 @@ parser.add_argument("--dist-url", default="tcp://224.66.41.62:23456", type=str,
                     help="url used to set up distributed training")
 parser.add_argument("--dist-backend", default="nccl", type=str,
                     help="distributed backend")
-parser.add_argument('--netG_A2B', default='', help="path to netG_A2B (to continue training)")
-parser.add_argument('--netG_B2A', default='', help="path to netG_B2A (to continue training)")
-parser.add_argument('--netD_A', default='', help="path to netD_A (to continue training)")
-parser.add_argument('--netD_B', default='', help="path to netD_B (to continue training)")
+parser.add_argument("--netG_A2B", default="", help="path to netG_A2B (to continue training)")
+parser.add_argument("--netG_B2A", default="", help="path to netG_B2A (to continue training)")
+parser.add_argument("--netD_A", default="", help="path to netD_A (to continue training)")
+parser.add_argument("--netD_B", default="", help="path to netD_B (to continue training)")
 parser.add_argument("--outf", default="./outputs",
-                    help="folder to output images. (default: ./outputs).")
+                    help="folder to output images. (default:`./outputs`).")
 parser.add_argument("--image-size", type=int, default=256,
-                    help="size of the data crop (squared assumed)")
+                    help="size of the data crop (squared assumed). (default:256)")
 parser.add_argument("--seed", default=None, type=int,
-                    help="seed for initializing training. (default: none)")
+                    help="seed for initializing training. (default:none)")
 parser.add_argument("--gpu", default=None, type=int,
-                    help="GPU id to use. (default: none)")
+                    help="GPU id to use. (default:none)")
 parser.add_argument("--multiprocessing-distributed", action="store_true",
                     help="Use multi-processing distributed training to launch "
                          "N processes per node, which has N GPUs. This is the "
