@@ -121,8 +121,17 @@ dmypy.json
 .DS_Store
 
 # custom
+data/ae_photos
+data/apple2orange
+data/cezanne2photo
+data/facades
 data/horse2zebra
-data/horse2zebra.tgz
+data/iphone2dslr_flower
+data/maps
+data/monet2photo
+data/summer2winter_yosemite
+data/ukiyoe2photo
+data/vangogh2photo
 outputs/
 weights/horse2zebra
 
