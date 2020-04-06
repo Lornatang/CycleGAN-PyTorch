@@ -42,8 +42,13 @@ from cyclegan_pytorch import ReplayBuffer
 from cyclegan_pytorch import weights_init_normal
 
 parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
-parser.add_argument("--dataroot", type=str, default="./data/horse2zebra/",
+parser.add_argument("--dataroot", type=str, default="./data",
                     help="path to datasets")
+parser.add_argument("name", type=str,
+                    help="dataset name. "
+                         "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
+                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, cityscapes, facades, "
+                         "iphone2dslr_flower, ae_photos]")
 parser.add_argument("-j", "--workers", default=4, type=int, metavar="N",
                     help="number of data loading workers ``default:4``")
 parser.add_argument("--epochs", default=200, type=int, metavar="N",
@@ -77,7 +82,7 @@ parser.add_argument("--image-size", type=int, default=256,
                     help="size of the data crop (squared assumed)")
 parser.add_argument("--seed", default=None, type=int,
                     help="seed for initializing training.")
-parser.add_argument("--gpu", default=0, type=int,
+parser.add_argument("--gpu", default=None, type=int,
                     help="GPU id to use.")
 parser.add_argument("--multiprocessing-distributed", action="store_true",
                     help="Use multi-processing distributed training to launch "
@@ -94,6 +99,7 @@ def main():
         os.makedirs(os.path.join(args.outf, "A"))
         os.makedirs(os.path.join(args.outf, "B"))
         os.makedirs("weights")
+        os.makedirs(os.path.join("weights", args.name))
     except OSError:
         pass
 
@@ -219,7 +225,7 @@ def main_worker(gpu, ngpus_per_node, args):
     cudnn.benchmark = True
 
     # Dataset
-    dataset = ImageDataset(args.dataroot,
+    dataset = ImageDataset(os.path.join(args.dataroot, args.name),
                            transform=transforms.Compose(
                                [transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
                                 transforms.RandomCrop(args.image_size),
@@ -367,18 +373,18 @@ def main_worker(gpu, ngpus_per_node, args):
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                                                     and args.rank % ngpus_per_node == 0):
             # do checkpointing
-            torch.save(netG_A2B.state_dict(), f"weights/netG_A2B_epoch_{epoch}.pth")
-            torch.save(netG_B2A.state_dict(), f"weights/netG_B2A_epoch_{epoch}.pth")
-            torch.save(netD_A.state_dict(), f"weights/netD_A_epoch_{epoch}.pth")
-            torch.save(netD_B.state_dict(), f"weights/netD_B_epoch_{epoch}.pth")
+            torch.save(netG_A2B.state_dict(), f"weights/{args.name}/netG_A2B_epoch_{epoch}.pth")
+            torch.save(netG_B2A.state_dict(), f"weights/{args.name}/netG_B2A_epoch_{epoch}.pth")
+            torch.save(netD_A.state_dict(), f"weights/{args.name}/netD_A_epoch_{epoch}.pth")
+            torch.save(netD_B.state_dict(), f"weights/{args.name}/netD_B_epoch_{epoch}.pth")
 
             # save last checkpoint
         if epoch == args.epochs - 1:
-            torch.save(netG_A2B.state_dict(), "weights/netG_A2B.pth")
-            torch.save(netG_B2A.state_dict(), "weights/netG_B2A.pth")
-            torch.save(netD_A.state_dict(), "weights/netD_A.pth")
-            torch.save(netD_B.state_dict(), "weights/netD_B.pth")
+            torch.save(netG_A2B.state_dict(), f"weights/{args.name}/netG_A2B.pth")
+            torch.save(netG_B2A.state_dict(), f"weights/{args.name}/netG_B2A.pth")
+            torch.save(netD_A.state_dict(), f"weights/{args.name}/netD_A.pth")
+            torch.save(netD_B.state_dict(), f"weights/{args.name}/netD_B.pth")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
