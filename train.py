@@ -39,18 +39,18 @@ from cyclegan_pytorch import Discriminator
 from cyclegan_pytorch import Generator
 from cyclegan_pytorch import ImageDataset
 from cyclegan_pytorch import ReplayBuffer
-from cyclegan_pytorch import weights_init_normal
+from cyclegan_pytorch import weights_init
 
 parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
 parser.add_argument("--dataroot", type=str, default="./data",
-                    help="path to datasets")
+                    help="path to datasets. (default:./data)")
 parser.add_argument("name", type=str,
                     help="dataset name. "
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
                          "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, cityscapes, facades, "
                          "iphone2dslr_flower, ae_photos]")
 parser.add_argument("-j", "--workers", default=4, type=int, metavar="N",
-                    help="number of data loading workers ``default:4``")
+                    help="number of data loading workers. (default:4)")
 parser.add_argument("--epochs", default=200, type=int, metavar="N",
                     help="number of total epochs to run")
 parser.add_argument("--start-epoch", default=0, type=int, metavar="N",
@@ -61,13 +61,13 @@ parser.add_argument("-b", "--batch-size", default=1, type=int,
                          "batch size of all GPUs on the current node when "
                          "using Data Parallel or Distributed Data Parallel")
 parser.add_argument("--lr", type=float, default=0.0002,
-                    help="learning rate. ``default:0.0002``")
+                    help="learning rate. (default:0.0002)")
 parser.add_argument("--beta1", type=float, default=0.5,
-                    help="beta1 for adam. ``default:0.5``")
+                    help="beta1 for adam. (default:0.5)`")
 parser.add_argument("--beta2", type=float, default=0.999,
-                    help="beta2 for adam. ``default:0.999``")
+                    help="beta2 for adam. (default:0.999)")
 parser.add_argument("-p", "--print-freq", default=100, type=int,
-                    metavar="N", help="print frequency. ``default: 100``")
+                    metavar="N", help="print frequency. (default:100)")
 parser.add_argument("--world-size", default=-1, type=int,
                     help="number of nodes for distributed training")
 parser.add_argument("--rank", default=-1, type=int,
@@ -76,14 +76,18 @@ parser.add_argument("--dist-url", default="tcp://224.66.41.62:23456", type=str,
                     help="url used to set up distributed training")
 parser.add_argument("--dist-backend", default="nccl", type=str,
                     help="distributed backend")
+parser.add_argument('--netG_A2B', default='', help="path to netG_A2B (to continue training)")
+parser.add_argument('--netG_B2A', default='', help="path to netG_B2A (to continue training)")
+parser.add_argument('--netD_A', default='', help="path to netD_A (to continue training)")
+parser.add_argument('--netD_B', default='', help="path to netD_B (to continue training)")
 parser.add_argument("--outf", default="./outputs",
-                    help="folder to output images. ``default:'./outputs'``.")
+                    help="folder to output images. (default: ./outputs).")
 parser.add_argument("--image-size", type=int, default=256,
                     help="size of the data crop (squared assumed)")
 parser.add_argument("--seed", default=None, type=int,
-                    help="seed for initializing training.")
+                    help="seed for initializing training. (default: none)")
 parser.add_argument("--gpu", default=None, type=int,
-                    help="GPU id to use.")
+                    help="GPU id to use. (default: none)")
 parser.add_argument("--multiprocessing-distributed", action="store_true",
                     help="Use multi-processing distributed training to launch "
                          "N processes per node, which has N GPUs. This is the "
@@ -100,8 +104,8 @@ def main():
         pass
 
     try:
-        os.makedirs(os.path.join(args.outf, "A"))
-        os.makedirs(os.path.join(args.outf, "B"))
+        os.makedirs(os.path.join(args.outf, str(args.name), "A"))
+        os.makedirs(os.path.join(args.outf, str(args.name), "B"))
     except OSError:
         pass
 
@@ -211,10 +215,21 @@ def main_worker(gpu, ngpus_per_node, args):
         netD_A = torch.nn.DataParallel(netD_A).cuda()
         netD_B = torch.nn.DataParallel(netD_B).cuda()
 
-    netG_A2B.apply(weights_init_normal)
-    netG_B2A.apply(weights_init_normal)
-    netD_A.apply(weights_init_normal)
-    netD_B.apply(weights_init_normal)
+    # apply weight init
+    netG_A2B.apply(weights_init)
+    netG_B2A.apply(weights_init)
+    netD_A.apply(weights_init)
+    netD_B.apply(weights_init)
+
+    # resume trainning
+    if opt.netG_A2B != "":
+        netG_A2B.load_state_dict(torch.load(opt.netG_A2B))
+    if opt.netG_B2A != "":
+        netG_B2A.load_state_dict(torch.load(opt.netG_B2A))
+    if opt.netD_A != "":
+        netD_A.load_state_dict(torch.load(opt.netD_A))
+    if opt.netD_B != "":
+        netD_B.load_state_dict(torch.load(opt.netD_B))
 
     # define loss function (adversarial_loss) and optimizer
     adversarial_loss = torch.nn.MSELoss().cuda(args.gpu)

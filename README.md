@@ -65,8 +65,9 @@ usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
                 [--start-epoch N] [-b N] [--lr LR] [--beta1 BETA1]
                 [--beta2 BETA2] [-p N] [--world-size WORLD_SIZE] [--rank RANK]
                 [--dist-url DIST_URL] [--dist-backend DIST_BACKEND]
-                [--outf OUTF] [--image-size IMAGE_SIZE] [--seed SEED]
-                [--gpu GPU] [--multiprocessing-distributed]
+                [--netG_A2B NETG_A2B] [--netG_B2A NETG_B2A] [--netD_A NETD_A]
+                [--netD_B NETD_B] [--outf OUTF] [--image-size IMAGE_SIZE]
+                [--seed SEED] [--gpu GPU] [--multiprocessing-distributed]
                 name
 ```
 
@@ -74,6 +75,12 @@ usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
 
 ```bash
 $ python3 train.py horse2zebra --gpu 0
+```
+
+If you want to load weights that you've trained before, run the following command.
+
+```bash
+$ python3 train.py horse2zebra --gpu 0 --netG_A2B weights/horse2zebra/netG_A2B_epoch_*.pth --netG_B2A weights/horse2zebra/netG_B2A_epoch_*.pth --netD_A weights/horse2zebra/netD_A_epoch_*.pth --netD_B weights/horse2zebra/netD_B_epoch_*.pth
 ```
 
 ### Contributing
