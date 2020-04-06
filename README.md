@@ -60,14 +60,14 @@ $ python3 test.py --netG_A2B weights/horse2zebra/netG_A2B.pth --netG_B2A weights
 
 ### Train
 
-```bash
+```text
 usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
-                [--start-epoch N] [--decay-epoch DECAY_EPOCH] [-b N] [--lr LR]
-                [--beta1 BETA1] [--beta2 BETA2] [-p N]
-                [--world-size WORLD_SIZE] [--rank RANK] [--dist-url DIST_URL]
-                [--dist-backend DIST_BACKEND] [--outf OUTF]
-                [--image-size IMAGE_SIZE] [--seed SEED] [--gpu GPU]
-                [--multiprocessing-distributed]
+                [--start-epoch N] [-b N] [--lr LR] [--beta1 BETA1]
+                [--beta2 BETA2] [-p N] [--world-size WORLD_SIZE] [--rank RANK]
+                [--dist-url DIST_URL] [--dist-backend DIST_BACKEND]
+                [--outf OUTF] [--image-size IMAGE_SIZE] [--seed SEED]
+                [--gpu GPU] [--multiprocessing-distributed]
+                name
 ```
 
 #### Example (horse2zebra)
