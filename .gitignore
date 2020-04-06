@@ -124,5 +124,5 @@ dmypy.json
 data/horse2zebra
 data/horse2zebra.tgz
 outputs/
-weights/*.pth
+weights/horse2zebra
 
