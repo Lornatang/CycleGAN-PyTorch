@@ -73,7 +73,7 @@ usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
 #### Example (horse2zebra)
 
 ```bash
-$ python3 train.py --dataroot horse2zebra
+$ python3 train.py horse2zebra --gpu 0
 ```
 
 ### Contributing
