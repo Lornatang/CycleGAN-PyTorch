@@ -47,7 +47,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, in_channels, out_channels, n_residual_blocks=9):
+    def __init__(self, in_channels, out_channels):
         super(Generator, self).__init__()
 
         # Initial convolution block
@@ -57,28 +57,24 @@ class Generator(nn.Module):
                   nn.ReLU(inplace=True)]
 
         # Downsampling
-        in_features = 64
-        out_features = in_features * 2
-        for _ in range(2):
-            layers += [nn.Conv2d(in_features, out_features, 3, stride=2, padding=1),
-                       nn.InstanceNorm2d(out_features),
-                       nn.ReLU(inplace=True)]
-            in_features = out_features
-            out_features = in_features * 2
+        layers += [nn.Conv2d(64, 128, 3, stride=2, padding=1),
+                   nn.InstanceNorm2d(128),
+                   nn.ReLU(inplace=True),
+                   nn.Conv2d(128, 256, 3, stride=2, padding=1),
+                   nn.InstanceNorm2d(256),
+                   nn.ReLU(inplace=True)]
 
         # Residual blocks
-        for _ in range(n_residual_blocks):
-            layers += [ResidualBlock(in_features)]
+        for _ in range(9):
+            layers += [ResidualBlock(256)]
 
         # Upsampling
-        out_features = in_features // 2
-        for _ in range(2):
-            layers += [nn.ConvTranspose2d(in_features, out_features, 3, stride=2, padding=1,
-                                          output_padding=1),
-                       nn.InstanceNorm2d(out_features),
-                       nn.ReLU(inplace=True)]
-            in_features = out_features
-            out_features = in_features // 2
+        layers += [nn.Conv2d(256, 128, 3, stride=2, padding=1),
+                   nn.InstanceNorm2d(128),
+                   nn.ReLU(inplace=True),
+                   nn.Conv2d(128, 64, 3, stride=2, padding=1),
+                   nn.InstanceNorm2d(64),
+                   nn.ReLU(inplace=True)]
 
         # Output layer
         layers += [nn.ReflectionPad2d(3),

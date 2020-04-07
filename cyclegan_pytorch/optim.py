@@ -11,18 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from .datasets import ImageDataset
-from .models import Discriminator
-from .models import Generator
-from .optim import DecayLR
-from .utils import ReplayBuffer
-from .utils import weights_init
 
-__all__ = [
-    "ImageDataset",
-    "Discriminator",
-    "Generator",
-    "DecayLR",
-    "ReplayBuffer",
-    "weights_init",
-]
+
+class DecayLR:
+    def __init__(self, epochs, offset, decay_epochs):
+        epoch_flag = epochs - decay_epochs
+        assert (epoch_flag > 0), "Decay must start before the training session ends!"
+        self.epochs = epochs
+        self.offset = offset
+        self.decay_epochs = decay_epochs
+
+    def step(self, epoch):
+        return 1.0 - max(0, epoch + self.offset - self.decay_epochs) / (
+                self.epochs - self.decay_epochs)
