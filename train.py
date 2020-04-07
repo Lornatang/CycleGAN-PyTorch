@@ -339,7 +339,6 @@ def main_worker(gpu, ngpus_per_node, args):
             D_x_A = adversarial_loss(real_output_A, real_label)
 
             # Fake A image loss
-            # fake_A = fake_A_buffer.push_and_pop(fake_A)
             fake_output_A = netD_A(fake_A.detach())
             errD_fake_A = adversarial_loss(fake_output_A, fake_label)
 
@@ -359,7 +358,6 @@ def main_worker(gpu, ngpus_per_node, args):
             D_x_B = adversarial_loss(real_output_B, real_label)
 
             # Fake B image loss
-            # fake_B = fake_B_buffer.push_and_pop(fake_B)
             fake_output_B = netD_B(fake_B.detach())
             errD_fake_B = adversarial_loss(fake_output_B, fake_label)
 
