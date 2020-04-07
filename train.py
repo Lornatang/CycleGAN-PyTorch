@@ -256,13 +256,12 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # Dataset
     dataset = ImageDataset(os.path.join(args.dataroot, args.name),
-                           transform=transforms.Compose(
-                               [transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
-                                transforms.RandomCrop(args.image_size),
-                                transforms.RandomHorizontalFlip(),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                                ]),
+                           transform=transforms.Compose([
+                               transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
+                               transforms.RandomCrop(args.image_size),
+                               transforms.RandomHorizontalFlip(),
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
                            unaligned=True)
 
     dataloader = torch.utils.data.DataLoader(dataset,
