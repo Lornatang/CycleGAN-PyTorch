@@ -32,14 +32,13 @@ import torch.utils.data.distributed
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-from cyclegan_pytorch import DecayLR
 from PIL import Image
 from tqdm import tqdm
 
+from cyclegan_pytorch import DecayLR
 from cyclegan_pytorch import Discriminator
 from cyclegan_pytorch import Generator
 from cyclegan_pytorch import ImageDataset
-from cyclegan_pytorch import ReplayBuffer
 from cyclegan_pytorch import weights_init
 
 parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
@@ -295,9 +294,6 @@ def main_worker(gpu, ngpus_per_node, args):
                 real_label = real_label.cuda(args.gpu, non_blocking=True)
                 fake_label = fake_label.cuda(args.gpu, non_blocking=True)
 
-            fake_A_buffer = ReplayBuffer()
-            fake_B_buffer = ReplayBuffer()
-
             ##############################################
             # (1) Update G network: Generators A2B and B2A
             ##############################################
@@ -343,7 +339,7 @@ def main_worker(gpu, ngpus_per_node, args):
             D_x_A = adversarial_loss(real_output_A, real_label)
 
             # Fake A image loss
-            fake_A = fake_A_buffer.push_and_pop(fake_A)
+            # fake_A = fake_A_buffer.push_and_pop(fake_A)
             fake_output_A = netD_A(fake_A.detach())
             errD_fake_A = adversarial_loss(fake_output_A, fake_label)
 
@@ -363,7 +359,7 @@ def main_worker(gpu, ngpus_per_node, args):
             D_x_B = adversarial_loss(real_output_B, real_label)
 
             # Fake B image loss
-            fake_B = fake_B_buffer.push_and_pop(fake_B)
+            # fake_B = fake_B_buffer.push_and_pop(fake_B)
             fake_output_B = netD_B(fake_B.detach())
             errD_fake_B = adversarial_loss(fake_output_B, fake_label)
 
