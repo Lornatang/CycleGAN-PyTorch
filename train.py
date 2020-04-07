@@ -32,6 +32,7 @@ import torch.utils.data.distributed
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
+from cyclegan_pytorch import DecayLR
 from PIL import Image
 from tqdm import tqdm
 
@@ -55,6 +56,8 @@ parser.add_argument("--epochs", default=200, type=int, metavar="N",
                     help="number of total epochs to run")
 parser.add_argument("--start-epoch", default=0, type=int, metavar="N",
                     help="manual epoch number (useful on restarts)")
+parser.add_argument("--decay_epochs", type=int, default=100,
+                    help="epoch to start linearly decaying the learning rate to 0. (default:100)")
 parser.add_argument("-b", "--batch-size", default=1, type=int,
                     metavar="N",
                     help="mini-batch size (default: 1), this is the total "
@@ -222,13 +225,13 @@ def main_worker(gpu, ngpus_per_node, args):
     netD_B.apply(weights_init)
 
     # resume trainning
-    if opt.netG_A2B != "":
+    if args.netG_A2B != "":
         netG_A2B.load_state_dict(torch.load(opt.netG_A2B))
-    if opt.netG_B2A != "":
+    if args.netG_B2A != "":
         netG_B2A.load_state_dict(torch.load(opt.netG_B2A))
-    if opt.netD_A != "":
+    if args.netD_A != "":
         netD_A.load_state_dict(torch.load(opt.netD_A))
-    if opt.netD_B != "":
+    if args.netD_B != "":
         netD_B.load_state_dict(torch.load(opt.netD_B))
 
     # define loss function (adversarial_loss) and optimizer
@@ -243,6 +246,11 @@ def main_worker(gpu, ngpus_per_node, args):
                                      betas=(args.beta1, args.beta2))
     optimizer_D_B = torch.optim.Adam(netD_B.parameters(), lr=args.lr,
                                      betas=(args.beta1, args.beta2))
+
+    lr_lambda = DecayLR(args.epochs, args.start_epoch, args.decay_epochs).step
+    lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_lambda)
+    lr_scheduler_D_A = torch.optim.lr_scheduler.LambdaLR(optimizer_D_A, lr_lambda=lr_lambda)
+    lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B, lr_lambda=lr_lambda)
 
     cudnn.benchmark = True
 
@@ -376,20 +384,20 @@ def main_worker(gpu, ngpus_per_node, args):
 
             if i % args.print_freq == 0:
                 vutils.save_image(real_images_A,
-                                  f"{args.outf}/A/real_samples.png",
+                                  f"{args.outf}/{args.name}/A/real_samples.png",
                                   normalize=True)
                 vutils.save_image(real_images_B,
-                                  f"{args.outf}/B/real_samples.png",
+                                  f"{args.outf}/{args.name}/B/real_samples.png",
                                   normalize=True)
 
                 fake_A = 0.5 * (netG_B2A(real_images_B).data + 1.0)
                 fake_B = 0.5 * (netG_A2B(real_images_A).data + 1.0)
 
                 vutils.save_image(fake_A.detach(),
-                                  f"{args.outf}/A/fake_samples_epoch_{epoch}.png",
+                                  f"{args.outf}/{args.name}/A/fake_samples_epoch_{epoch}.png",
                                   normalize=True)
                 vutils.save_image(fake_B.detach(),
-                                  f"{args.outf}/B/fake_samples_epoch_{epoch}.png",
+                                  f"{args.outf}/{args.name}/B/fake_samples_epoch_{epoch}.png",
                                   normalize=True)
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
@@ -406,6 +414,11 @@ def main_worker(gpu, ngpus_per_node, args):
             torch.save(netG_B2A.state_dict(), f"weights/{args.name}/netG_B2A.pth")
             torch.save(netD_A.state_dict(), f"weights/{args.name}/netD_A.pth")
             torch.save(netD_B.state_dict(), f"weights/{args.name}/netD_B.pth")
+
+        # Update learning rates
+        lr_scheduler_G.step()
+        lr_scheduler_D_A.step()
+        lr_scheduler_D_B.step()
 
 
 if __name__ == "__main__":
