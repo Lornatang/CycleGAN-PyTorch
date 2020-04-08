@@ -23,6 +23,8 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
+import torchvision.utils as vutils
+from tqdm import tqdm
 
 from cyclegan_pytorch import Generator
 from cyclegan_pytorch import ImageDataset
@@ -98,7 +100,7 @@ def test():
     netG_A2B.eval()
     netG_B2A.eval()
 
-    dataset = ImageDataset(args.dataroot,
+    dataset = ImageDataset(os.path.join(args.dataroot, args.name),
                            transform=transforms.Compose(
                                [transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -106,7 +108,7 @@ def test():
                            mode="test")
 
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=args.batch_size,
+                                             batch_size=1,
                                              shuffle=False,
                                              num_workers=int(args.workers))
 
@@ -125,11 +127,12 @@ def test():
         fake_B = 0.5 * (netG_A2B(real_images_A).data + 1.0)
 
         # Save image files
-        save_image(fake_A, f"gen/A/{i + 1:04d}.png", normalize=True)
-        save_image(fake_B, f"gen/B/{i + 1:04d}.png", normalize=True)
+        vutils.save_image(fake_A, f"gen/{args.name}/A/{i + 1:04d}.png", normalize=True)
+        vutils.save_image(fake_B, f"gen/{args.name}/B/{i + 1:04d}.png", normalize=True)
 
         progress_bar.set_description(f"Generated images {i + 1:04d} of {len(dataloader):04d}")
 
 
 if __name__ == '__main__':
+    args = parser.parse_args()
     test()
