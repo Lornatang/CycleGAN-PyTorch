@@ -69,10 +69,10 @@ class Generator(nn.Module):
             layers += [ResidualBlock(256)]
 
         # Upsampling
-        layers += [nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1),
+        layers += [nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
                    nn.InstanceNorm2d(128),
                    nn.ReLU(inplace=True),
-                   nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1),
+                   nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
                    nn.InstanceNorm2d(64),
                    nn.ReLU(inplace=True)]
 
