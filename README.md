@@ -55,7 +55,7 @@ $ bash get_dataset.sh <datasets-name>
 Using pre training model to generate pictures.
 
 ```bash
-$ python3 test.py --netG_A2B weights/horse2zebra/netG_A2B.pth --netG_B2A weights/horse2zebra/netG_B2A.pth
+$ python3 test.py horse2zebra --gpu 0
 ```
 
 <span align="left"><img src="assets/real_A.jpg" width="256" alt=""></span>

@@ -36,15 +36,9 @@ parser.add_argument("name", type=str,
                     help="dataset name. "
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
                          "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, facades, "
-                         "iphone2dslr_flower, ae_photos]")
+                         "iphone2dslr_flower]")
 parser.add_argument("-j", "--workers", default=4, type=int, metavar="N",
                     help="number of data loading workers ``default:4``")
-parser.add_argument("--netG_A2B", default="./weights/horse2zebra/netG_A2B.pth",
-                    help="path to latest generator checkpoint "
-                         "(default: `./weights/netG_A2B.pth`).")
-parser.add_argument("--netG_B2A", default="./weights/horse2zebra/netG_B2A.pth",
-                    help="path to latest generator checkpoint "
-                         "(default: `./weights/netG_B2A.pth`).")
 parser.add_argument("--dist-backend", default="nccl", type=str,
                     help="distributed backend")
 parser.add_argument("--outf", default="./gen",
@@ -55,6 +49,10 @@ parser.add_argument("--seed", default=None, type=int,
                     help="seed for initializing training. (default:none)")
 parser.add_argument("--gpu", default=None, type=int,
                     help="GPU id to use. (default:none)")
+
+valid_dataset_name = ["apple2orange", "summer2winter_yosemite", "horse2zebra",
+                      "monet2photo", "cezanne2photo", "ukiyoe2photo", "vangogh2photo",
+                      "maps, facades", "iphone2dslr_flower"]
 
 
 def test():
@@ -82,8 +80,8 @@ def test():
     netG_B2A = netG_B2A.cuda(args.gpu)
 
     # Load state dicts
-    netG_A2B.load_state_dict(torch.load(args.netG_A2B))
-    netG_B2A.load_state_dict(torch.load(args.netG_B2A))
+    netG_A2B.load_state_dict(torch.load(os.path.join("weights", str(args.name), "netG_A2B.pth")))
+    netG_B2A.load_state_dict(torch.load(os.path.join("weights", str(args.name), "netG_B2A.pth")))
 
     # Set model mode
     netG_A2B.eval()
@@ -100,7 +98,7 @@ def test():
                                              batch_size=1,
                                              shuffle=False,
                                              num_workers=int(args.workers))
-    assert len(dataloader) > 0, "Please check that your dataset name is correct."
+    assert len(dataloader) > 0, f"Please check that your dataset name. Option: {valid_dataset_name}"
 
     try:
         os.makedirs(args.outf)
@@ -131,7 +129,7 @@ def test():
         vutils.save_image(fake_A, f"gen/{args.name}/A/{i + 1:04d}.png", normalize=True)
         vutils.save_image(fake_B, f"gen/{args.name}/B/{i + 1:04d}.png", normalize=True)
 
-        progress_bar.set_description(f"Generated images {i + 1:04d} of {len(dataloader):04d}")
+        progress_bar.set_description(f"Generated images {i + 1} of {len(dataloader)}")
 
 
 if __name__ == '__main__':
