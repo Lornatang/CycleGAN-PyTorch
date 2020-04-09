@@ -58,10 +58,11 @@ Using pre training model to generate pictures.
 $ python3 test.py --netG_A2B weights/horse2zebra/netG_A2B.pth --netG_B2A weights/horse2zebra/netG_B2A.pth
 ```
 
-<p align="left"><img src="assets/real_A.jpg" width="256" alt=""></p>
-<p align="right"><img src="assets/fake_B.png" width="256" alt=""></p>
-<p align="left"><img src="assets/real_B.jpg" width="256" alt=""></p>
-<p align="right"><img src="assets/fake_A.png" width="256" alt=""></p>
+<span align="left"><img src="assets/real_A.jpg" width="256" alt=""></span>
+<span align="right"><img src="assets/fake_B.png" width="256" alt=""></span>
+<br>
+<span align="left"><img src="assets/real_B.jpg" width="256" alt=""></span>
+<span align="right"><img src="assets/fake_A.png" width="256" alt=""></span>
 
 ### Train
 
