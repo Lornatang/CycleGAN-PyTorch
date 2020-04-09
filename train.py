@@ -21,7 +21,6 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.multiprocessing as mp
-import torch.nn as nn
 import torch.nn.parallel
 import torch.nn.parallel
 import torch.optim
@@ -96,25 +95,13 @@ parser.add_argument("--multiprocessing-distributed", action="store_true",
                          "fastest way to use PyTorch for either single node or "
                          "multi node data parallel training")
 
+valid_dataset_name = ["apple2orange", "summer2winter_yosemite", "horse2zebra",
+                      "monet2photo", "cezanne2photo", "ukiyoe2photo", "vangogh2photo",
+                      "maps, facades", "iphone2dslr_flower"]
+
 
 def main():
     args = parser.parse_args()
-
-    try:
-        os.makedirs(args.outf)
-    except OSError:
-        pass
-
-    try:
-        os.makedirs(os.path.join(args.outf, str(args.name), "A"))
-        os.makedirs(os.path.join(args.outf, str(args.name), "B"))
-    except OSError:
-        pass
-
-    try:
-        os.makedirs(os.path.join("weights", str(args.name)))
-    except OSError:
-        pass
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -253,8 +240,11 @@ def main_worker(gpu, ngpus_per_node, args):
 
     cudnn.benchmark = True
 
+    dataroot = os.path.join(args.dataroot, args.name)
+    assert os.path.exists(dataroot), f"Please check that your dataset is exist."
+
     # Dataset
-    dataset = ImageDataset(os.path.join(args.dataroot, args.name),
+    dataset = ImageDataset(dataroot,
                            transform=transforms.Compose([
                                transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
                                transforms.RandomCrop(args.image_size),
@@ -267,6 +257,24 @@ def main_worker(gpu, ngpus_per_node, args):
                                              batch_size=args.batch_size,
                                              shuffle=True,
                                              num_workers=int(args.workers))
+
+    assert len(dataloader) > 0, f"Please check that your dataset name. Option: {valid_dataset_name}"
+
+    try:
+        os.makedirs(args.outf)
+    except OSError:
+        pass
+
+    try:
+        os.makedirs(os.path.join(args.outf, str(args.name), "A"))
+        os.makedirs(os.path.join(args.outf, str(args.name), "B"))
+    except OSError:
+        pass
+
+    try:
+        os.makedirs(os.path.join("weights", str(args.name)))
+    except OSError:
+        pass
 
     for epoch in range(args.start_epoch, args.epochs):
 
