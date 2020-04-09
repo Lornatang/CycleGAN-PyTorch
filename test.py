@@ -58,17 +58,6 @@ parser.add_argument("--gpu", default=None, type=int,
 
 
 def test():
-    try:
-        os.makedirs(args.outf)
-    except OSError:
-        pass
-
-    try:
-        os.makedirs(os.path.join(args.outf, str(args.name), "A"))
-        os.makedirs(os.path.join(args.outf, str(args.name), "B"))
-    except OSError:
-        pass
-
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
@@ -111,6 +100,18 @@ def test():
                                              batch_size=1,
                                              shuffle=False,
                                              num_workers=int(args.workers))
+    assert len(dataloader) > 0, "Please check that your dataset name is correct."
+
+    try:
+        os.makedirs(args.outf)
+    except OSError:
+        pass
+
+    try:
+        os.makedirs(os.path.join(args.outf, str(args.name), "A"))
+        os.makedirs(os.path.join(args.outf, str(args.name), "B"))
+    except OSError:
+        pass
 
     progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
 
