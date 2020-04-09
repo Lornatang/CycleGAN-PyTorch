@@ -132,7 +132,10 @@ data/monet2photo
 data/summer2winter_yosemite
 data/ukiyoe2photo
 data/vangogh2photo
+
 outputs/
 gen/
+
 weights/horse2zebra
+weights/apple2orange
 
