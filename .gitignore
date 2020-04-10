@@ -136,6 +136,14 @@ data/vangogh2photo
 outputs/
 gen/
 
-weights/horse2zebra
+weights/ae_photos
 weights/apple2orange
-
+weights/cezanne2photo
+weights/facades
+weights/horse2zebra
+weights/iphone2dslr_flower
+weights/maps
+weights/monet2photo
+weights/summer2winter_yosemite
+weights/ukiyoe2photo
+weights/vangogh2photo
