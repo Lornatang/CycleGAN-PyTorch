@@ -276,6 +276,13 @@ def main_worker(gpu, ngpus_per_node, args):
     except OSError:
         pass
 
+    g_losses = []
+    d_losses = []
+
+    identity_losses = []
+    gan_losses = []
+    cycle_losses = []
+
     for epoch in range(args.start_epoch, args.epochs):
 
         # switch to train mode
@@ -288,15 +295,15 @@ def main_worker(gpu, ngpus_per_node, args):
 
         for i, data in progress_bar:
             # get batch size data
-            real_images_A = data["A"]
-            real_images_B = data["B"]
+            real_image_A = data["A"]
+            real_image_B = data["B"]
             if args.gpu is not None:
-                real_images_A = real_images_A.cuda(args.gpu, non_blocking=True)
-                real_images_B = real_images_B.cuda(args.gpu, non_blocking=True)
+                real_image_A = real_image_A.cuda(args.gpu, non_blocking=True)
+                real_image_B = real_image_B.cuda(args.gpu, non_blocking=True)
 
             # real data label is 1, fake data label is 0.
-            real_label = torch.full((real_images_A.size(0), 1), 1, requires_grad=False)
-            fake_label = torch.full((real_images_B.size(0), 1), 0, requires_grad=False)
+            real_label = torch.full((real_image_A.size(0), 1), 1, requires_grad=False)
+            fake_label = torch.full((real_image_B.size(0), 1), 0, requires_grad=False)
 
             if args.gpu is not None:
                 real_label = real_label.cuda(args.gpu, non_blocking=True)
@@ -305,74 +312,87 @@ def main_worker(gpu, ngpus_per_node, args):
             ##############################################
             # (1) Update G network: Generators A2B and B2A
             ##############################################
+
+            # Set G_A and G_B's gradients to zero
             optimizer_G.zero_grad()
 
             # Identity loss
             # G_B2A(A) should equal A if real A is fed
-            sample_A = netG_B2A(real_images_A)
-            loss_identity_A = identity_loss(sample_A, real_images_A) * 5.0
+            identity_image_A = netG_B2A(real_image_A)
+            loss_identity_A = identity_loss(identity_image_A, real_image_A) * 5.0
             # G_A2B(B) should equal B if real B is fed
-            sample_B = netG_A2B(real_images_B)
-            loss_identity_B = identity_loss(sample_B, real_images_B) * 5.0
+            identity_image_B = netG_A2B(real_image_B)
+            loss_identity_B = identity_loss(identity_image_B, real_image_B) * 5.0
 
             # GAN loss
-            fake_B = netG_A2B(real_images_A)
-            fake_output_B = netD_B(fake_B)
+            # GAN loss D_A(G_A(A))
+            fake_image_A = netG_B2A(real_image_B)
+            fake_output_A = netD_A(fake_image_A)
+            loss_GAN_B2A = adversarial_loss(fake_output_A, real_label)
+            # GAN loss D_B(G_B(B))
+            fake_image_B = netG_A2B(real_image_A)
+            fake_output_B = netD_B(fake_image_B)
             loss_GAN_A2B = adversarial_loss(fake_output_B, real_label)
 
-            fake_A = netG_B2A(real_images_B)
-            fake_output_A = netD_A(fake_A)
-            loss_GAN_B2A = adversarial_loss(fake_output_A, real_label)
-
             # Cycle loss
-            recovered_A = netG_B2A(fake_B)
-            loss_cycle_ABA = cycle_loss(recovered_A, real_images_A) * 10.0
+            recovered_image_A = netG_B2A(fake_image_B)
+            loss_cycle_ABA = cycle_loss(recovered_image_A, real_image_A) * 10.0
 
-            recovered_B = netG_A2B(fake_A)
-            loss_cycle_BAB = cycle_loss(recovered_B, real_images_B) * 10.0
+            recovered_image_B = netG_A2B(fake_image_A)
+            loss_cycle_BAB = cycle_loss(recovered_image_B, real_image_B) * 10.0
 
-            # Total loss
+            # Combined loss and calculate gradients
             errG = loss_identity_A + loss_identity_B + loss_GAN_A2B + loss_GAN_B2A + loss_cycle_ABA + loss_cycle_BAB
+
+            # Calculate gradients for G_A and G_B
             errG.backward()
-            # Update G
+            # Update G_A and G_B's weights
             optimizer_G.step()
 
             ##############################################
             # (2) Update D network: Discriminator A
             ##############################################
+
+            # Set D_A gradients to zero
             optimizer_D_A.zero_grad()
 
             # Real A image loss
-            real_output_A = netD_A(real_images_A)
+            real_output_A = netD_A(real_image_A)
             D_x_A = adversarial_loss(real_output_A, real_label)
 
             # Fake A image loss
-            fake_output_A = netD_A(fake_A.detach())
+            fake_output_A = netD_A(fake_image_A.detach())
             errD_fake_A = adversarial_loss(fake_output_A, fake_label)
 
-            # Total A image loss
+            # Combined loss and calculate gradients
             loss_D_A = (D_x_A + errD_fake_A) / 2
+
+            # Calculate gradients for D_A
             loss_D_A.backward()
-            # Update D for A
+            # Update D_A weights
             optimizer_D_A.step()
 
             ##############################################
             # (3) Update D network: Discriminator B
             ##############################################
+
+            # Set D_B gradients to zero
             optimizer_D_B.zero_grad()
 
             # Real B image loss
-            real_output_B = netD_B(real_images_B)
+            real_output_B = netD_B(real_image_B)
             D_x_B = adversarial_loss(real_output_B, real_label)
 
             # Fake B image loss
-            fake_output_B = netD_B(fake_B.detach())
+            fake_output_B = netD_B(fake_image_B.detach())
             errD_fake_B = adversarial_loss(fake_output_B, fake_label)
 
-            # Total B image loss
+            # Combined loss and calculate gradients
             loss_D_B = (D_x_B + errD_fake_B) / 2
+
+            # Calculate gradients for D_B
             loss_D_B.backward()
-            # Update D for B
+            # Update D_B weights
             optimizer_D_B.step()
 
             progress_bar.set_description(
@@ -384,20 +404,28 @@ def main_worker(gpu, ngpus_per_node, args):
                 f"loss_G_cycle: {(loss_cycle_ABA + loss_cycle_BAB).item():.4f}")
 
             if i % args.print_freq == 0:
-                vutils.save_image(real_images_A,
+                # Save Losses for plotting later
+                g_losses.append(errG.item())
+                d_losses.append((loss_D_A + loss_D_B).item())
+
+                identity_losses.append((loss_identity_A + loss_identity_B).item())
+                gan_losses.append((loss_GAN_A2B + loss_GAN_B2A).item())
+                cycle_losses.append((loss_cycle_ABA + loss_cycle_BAB).item())
+
+                vutils.save_image(real_image_A,
                                   f"{args.outf}/{args.name}/A/real_samples.png",
                                   normalize=True)
-                vutils.save_image(real_images_B,
+                vutils.save_image(real_image_B,
                                   f"{args.outf}/{args.name}/B/real_samples.png",
                                   normalize=True)
 
-                fake_A = 0.5 * (netG_B2A(real_images_B).data + 1.0)
-                fake_B = 0.5 * (netG_A2B(real_images_A).data + 1.0)
+                fake_image_A = 0.5 * (netG_B2A(real_image_B).data + 1.0)
+                fake_image_B = 0.5 * (netG_A2B(real_image_A).data + 1.0)
 
-                vutils.save_image(fake_A.detach(),
+                vutils.save_image(fake_image_A.detach(),
                                   f"{args.outf}/{args.name}/A/fake_samples_epoch_{epoch}.png",
                                   normalize=True)
-                vutils.save_image(fake_B.detach(),
+                vutils.save_image(fake_image_B.detach(),
                                   f"{args.outf}/{args.name}/B/fake_samples_epoch_{epoch}.png",
                                   normalize=True)
 
@@ -420,6 +448,18 @@ def main_worker(gpu, ngpus_per_node, args):
         lr_scheduler_G.step()
         lr_scheduler_D_A.step()
         lr_scheduler_D_B.step()
+
+    plt.figure(figsize=(20, 5))
+    plt.title("Generator and Discriminator Loss During Training")
+    plt.plot(g_losses, label="G_Loss")
+    plt.plot(d_losses, label="D_Loss")
+    plt.plot(identity_losses, label="Identity_Loss")
+    plt.plot(gan_losses, label="Gan_Loss")
+    plt.plot(cycle_losses, label="Cycle_Loss")
+    plt.xlabel("iterations")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.savefig("result.png")
 
 
 if __name__ == "__main__":
