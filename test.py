@@ -67,8 +67,8 @@ def test():
                       "from checkpoints.")
 
     if args.gpu is not None:
-        warnings.warn("You have chosen a specific GPU. This will completely "
-                      "disable data parallelism.")
+        warnings.warn(
+            "You have chosen a specific GPU. This will completely disable data parallelism.")
 
     # create model
     netG_A2B = Generator(3, 3)
