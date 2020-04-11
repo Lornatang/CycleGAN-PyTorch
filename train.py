@@ -32,6 +32,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from PIL import Image
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from cyclegan_pytorch import DecayLR
