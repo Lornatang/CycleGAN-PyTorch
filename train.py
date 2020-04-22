@@ -208,13 +208,13 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # resume trainning
     if args.netG_A2B != "":
-        netG_A2B.load_state_dict(torch.load(opt.netG_A2B))
+        netG_A2B.load_state_dict(torch.load(args.netG_A2B))
     if args.netG_B2A != "":
-        netG_B2A.load_state_dict(torch.load(opt.netG_B2A))
+        netG_B2A.load_state_dict(torch.load(args.netG_B2A))
     if args.netD_A != "":
-        netD_A.load_state_dict(torch.load(opt.netD_A))
+        netD_A.load_state_dict(torch.load(args.netD_A))
     if args.netD_B != "":
-        netD_B.load_state_dict(torch.load(opt.netD_B))
+        netD_B.load_state_dict(torch.load(args.netD_B))
 
     # define loss function (adversarial_loss) and optimizer
     adversarial_loss = torch.nn.MSELoss().cuda(args.gpu)
