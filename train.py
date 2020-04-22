@@ -22,24 +22,19 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn.parallel
-import torch.nn.parallel
-import torch.optim
 import torch.optim
 import torch.utils.data
-import torch.utils.data
-import torch.utils.data.distributed
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from PIL import Image
-from matplotlib import pyplot as plt
-from tqdm import tqdm
-
 from cyclegan_pytorch import DecayLR
 from cyclegan_pytorch import Discriminator
 from cyclegan_pytorch import Generator
 from cyclegan_pytorch import ImageDataset
 from cyclegan_pytorch import weights_init
+from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
 parser.add_argument("--dataroot", type=str, default="./data",
