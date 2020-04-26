@@ -1,5 +1,3 @@
-djangorestframeworik
-django
 pillow
 six
 torch
