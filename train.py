@@ -323,25 +323,25 @@ for epoch in range(0, args.epochs):
                               f"{args.outf}/{args.name}/B/fake_samples_epoch_{epoch}.png",
                               normalize=True)
 
-        # do check pointing
-        torch.save(netG_A2B.state_dict(), f"weights/{args.name}/netG_A2B_epoch_{epoch}.pth")
-        torch.save(netG_B2A.state_dict(), f"weights/{args.name}/netG_B2A_epoch_{epoch}.pth")
-        torch.save(netD_A.state_dict(), f"weights/{args.name}/netD_A_epoch_{epoch}.pth")
-        torch.save(netD_B.state_dict(), f"weights/{args.name}/netD_B_epoch_{epoch}.pth")
+    # do check pointing
+    torch.save(netG_A2B.state_dict(), f"weights/{args.name}/netG_A2B_epoch_{epoch}.pth")
+    torch.save(netG_B2A.state_dict(), f"weights/{args.name}/netG_B2A_epoch_{epoch}.pth")
+    torch.save(netD_A.state_dict(), f"weights/{args.name}/netD_A_epoch_{epoch}.pth")
+    torch.save(netD_B.state_dict(), f"weights/{args.name}/netD_B_epoch_{epoch}.pth")
 
-        # Update learning rates
-        lr_scheduler_G.step()
-        lr_scheduler_D_A.step()
-        lr_scheduler_D_B.step()
+    # Update learning rates
+    lr_scheduler_G.step()
+    lr_scheduler_D_A.step()
+    lr_scheduler_D_B.step()
 
-    plt.figure(figsize=(20, 5))
-    plt.title("Generator and Discriminator Loss During Training")
-    plt.plot(g_losses, label="G_Loss")
-    plt.plot(d_losses, label="D_Loss")
-    plt.plot(identity_losses, label="Identity_Loss")
-    plt.plot(gan_losses, label="Gan_Loss")
-    plt.plot(cycle_losses, label="Cycle_Loss")
-    plt.xlabel("iterations")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.savefig("result.png")
+plt.figure(figsize=(20, 5))
+plt.title("Generator and Discriminator Loss During Training")
+plt.plot(g_losses, label="G_Loss")
+plt.plot(d_losses, label="D_Loss")
+plt.plot(identity_losses, label="Identity_Loss")
+plt.plot(gan_losses, label="Gan_Loss")
+plt.plot(cycle_losses, label="Cycle_Loss")
+plt.xlabel("iterations")
+plt.ylabel("Loss")
+plt.legend()
+plt.savefig("result.png")
