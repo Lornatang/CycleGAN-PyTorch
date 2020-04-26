@@ -32,7 +32,7 @@ from cyclegan_pytorch import weights_init
 
 parser = argparse.ArgumentParser(description="PyTorch CycleGAN")
 parser.add_argument("--dataroot", type=str, default="./data",
-                    help="path to datasets. (default:`./data`)")
+                    help="path to datasets. (default:./data)")
 parser.add_argument("name", type=str,
                     help="dataset name. "
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
