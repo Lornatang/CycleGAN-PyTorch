@@ -15,6 +15,7 @@ import glob
 import os
 import random
 
+import cv2
 from PIL import Image
 from torch.utils.data import Dataset
 
@@ -39,3 +40,27 @@ class ImageDataset(Dataset):
 
     def __len__(self):
         return max(len(self.files_A), len(self.files_B))
+
+
+class VideoDataset(Dataset):
+    def __init__(self, root, transform=None, style="A"):
+        self.transform = transform
+
+        capture = cv2.VideoCapture(root)
+        success, image = capture.read()
+        count = 0
+        while success:
+            if count % 1 == 0:
+                cv2.imwrite(os.path.join(root, f"{style}", f"{count}.jpg"), image)
+            success, image = capture.read()
+            count += 1
+
+        self.files = sorted(glob.glob(os.path.join(root, f"{style}") + "/*.*"))
+
+    def __getitem__(self, index):
+        items = self.transform(Image.open(self.files[index % len(self.files)]))
+
+        return items
+
+    def __len__(self):
+        return len(self.files)
