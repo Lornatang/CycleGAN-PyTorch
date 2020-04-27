@@ -105,7 +105,7 @@ if torch.cuda.is_available() and not args.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 dataroot = os.path.join(args.dataroot, args.name)
-assert os.path.exists(dataroot), f"Please check that your dataset is exist."
+assert os.path.exists(dataroot), "Please check that your dataset is exist."
 
 # Dataset
 dataset = ImageDataset(dataroot,
