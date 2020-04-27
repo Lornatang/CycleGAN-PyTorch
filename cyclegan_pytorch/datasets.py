@@ -51,11 +51,11 @@ class VideoDataset(Dataset):
         count = 0
         while success:
             if count % 1 == 0:
-                cv2.imwrite(os.path.join(root, f"{style}", f"{count}.jpg"), image)
+                cv2.imwrite(os.path.join("data", root, f"{style}", f"{count}.jpg"), image)
             success, image = capture.read()
             count += 1
 
-        self.files = sorted(glob.glob(os.path.join(root, f"{style}") + "/*.*"))
+        self.files = sorted(glob.glob(os.path.join("data", root, f"{style}") + "/*.*"))
 
     def __getitem__(self, index):
         items = self.transform(Image.open(self.files[index % len(self.files)]))
