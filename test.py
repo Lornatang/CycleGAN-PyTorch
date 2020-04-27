@@ -81,7 +81,7 @@ dataset = ImageDataset(dataroot,
                        unaligned=True)
 
 dataloader = torch.utils.data.DataLoader(dataset,
-                                         batch_size=args.batch_size,
+                                         batch_size=1,
                                          shuffle=True,
                                          num_workers=int(args.workers))
 
