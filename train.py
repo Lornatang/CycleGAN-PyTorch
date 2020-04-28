@@ -105,7 +105,7 @@ if torch.cuda.is_available() and not args.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 dataroot = os.path.join(args.dataroot, args.name)
-assert os.path.exists(dataroot), "Please check that your dataset is exist."
+assert os.path.exists(dataroot), "WARNING: Please check that your dataset is exist."
 
 # Dataset
 dataset = ImageDataset(dataroot,
@@ -122,7 +122,7 @@ dataloader = torch.utils.data.DataLoader(dataset,
                                          shuffle=True,
                                          num_workers=int(args.workers))
 
-assert len(dataloader) > 0, f"Please check that your dataset name. Option: {valid_dataset_name}"
+assert len(dataloader) > 0, f"WARNING: Please check that your dataset name. Option: {valid_dataset_name}"
 
 try:
     os.makedirs(os.path.join(args.outf, str(args.name), "A"))
