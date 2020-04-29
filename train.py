@@ -174,10 +174,8 @@ identity_loss = torch.nn.L1Loss().to(device)
 # Optimizers
 optimizer_G = torch.optim.Adam(itertools.chain(netG_A2B.parameters(), netG_B2A.parameters()),
                                lr=args.lr, betas=(args.beta1, args.beta2))
-optimizer_D_A = torch.optim.Adam(netD_A.parameters(), lr=args.lr,
-                                 betas=(args.beta1, args.beta2))
-optimizer_D_B = torch.optim.Adam(netD_B.parameters(), lr=args.lr,
-                                 betas=(args.beta1, args.beta2))
+optimizer_D_A = torch.optim.Adam(netD_A.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
+optimizer_D_B = torch.optim.Adam(netD_B.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
 
 lr_lambda = DecayLR(args.epochs, 0, args.decay_epochs).step
 lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_lambda)
