@@ -55,7 +55,7 @@ $ bash get_dataset.sh <datasets-name>
 Using pre training model to generate pictures.
 
 ```bash
-$ python3 test.py horse2zebra --gpu 0
+$ python3 test.py horse2zebra --cuda
 ```
 
 <span align="left"><img src="assets/real_A.jpg" width="256" alt=""></span>
@@ -79,13 +79,13 @@ usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
 #### Example (horse2zebra)
 
 ```bash
-$ python3 train.py horse2zebra --gpu 0
+$ python3 train.py horse2zebra --ngpu 1 --cuda
 ```
 
 If you want to load weights that you've trained before, run the following command.
 
 ```bash
-$ python3 train.py horse2zebra --gpu 0 --netG_A2B weights/horse2zebra/netG_A2B_epoch_*.pth --netG_B2A weights/horse2zebra/netG_B2A_epoch_*.pth --netD_A weights/horse2zebra/netD_A_epoch_*.pth --netD_B weights/horse2zebra/netD_B_epoch_*.pth
+$ python3 train.py horse2zebra --ngpu 1 --netG_A2B weights/horse2zebra/netG_A2B_epoch_*.pth --netG_B2A weights/horse2zebra/netG_B2A_epoch_*.pth --netD_A weights/horse2zebra/netD_A_epoch_*.pth --netD_B weights/horse2zebra/netD_B_epoch_*.pth --cuda
 ```
 
 ### Contributing
