@@ -196,8 +196,8 @@ for epoch in range(0, args.epochs):
         batch_size = real_image_A.size(0)
 
         # real data label is 1, fake data label is 0.
-        real_label = torch.full((batch_size, 1), 1, requires_grad=False, device=device)
-        fake_label = torch.full((batch_size, 1), 0, requires_grad=False, device=device)
+        real_label = torch.full((batch_size, 1), 1, device=device, dtype=torch.float32)
+        fake_label = torch.full((batch_size, 1), 0, device=device, dtype=torch.float32)
 
         ##############################################
         # (1) Update G network: Generators A2B and B2A
