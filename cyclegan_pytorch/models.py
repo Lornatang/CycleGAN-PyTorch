@@ -65,7 +65,7 @@ class Generator(nn.Module):
                    nn.ReLU(inplace=True)]
 
         # Residual blocks
-        for _ in range(6):
+        for _ in range(9):
             layers += [ResidualBlock(256)]
 
         # Upsampling
