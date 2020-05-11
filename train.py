@@ -24,6 +24,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+from cyclegan_pytorch import ReplayBuffer
 from cyclegan_pytorch import DecayLR
 from cyclegan_pytorch import Discriminator
 from cyclegan_pytorch import Generator
@@ -187,6 +188,9 @@ identity_losses = []
 gan_losses = []
 cycle_losses = []
 
+fake_A_buffer = ReplayBuffer()
+fake_B_buffer = ReplayBuffer()
+
 for epoch in range(0, args.epochs):
     progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for i, data in progress_bar:
@@ -251,6 +255,7 @@ for epoch in range(0, args.epochs):
         D_x_A = adversarial_loss(real_output_A, real_label)
 
         # Fake A image loss
+        fake_image_A = fake_A_buffer.push_and_pop(fake_image_A)
         fake_output_A = netD_A(fake_image_A.detach())
         errD_fake_A = adversarial_loss(fake_output_A, fake_label)
 
@@ -274,6 +279,7 @@ for epoch in range(0, args.epochs):
         D_x_B = adversarial_loss(real_output_B, real_label)
 
         # Fake B image loss
+        fake_image_B = fake_B_buffer.push_and_pop(fake_image_B)
         fake_output_B = netD_B(fake_image_B.detach())
         errD_fake_B = adversarial_loss(fake_output_B, fake_label)
 
