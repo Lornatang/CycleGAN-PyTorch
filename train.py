@@ -138,8 +138,6 @@ except OSError:
 device = torch.device("cuda:0" if args.cuda else "cpu")
 ngpu = int(args.ngpu)
 
-assert (args.batch_size > 2 and ngpu < 1), "You used multi GPU training, you should probably run with --batch-size 2"
-
 # create model
 netG_A2B = Generator(3, 3).to(device)
 netG_B2A = Generator(3, 3).to(device)
