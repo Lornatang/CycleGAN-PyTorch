@@ -78,7 +78,7 @@ dataset = ImageDataset(dataroot,
                            transforms.RandomHorizontalFlip(),
                            transforms.ToTensor(),
                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-                       unaligned=True)
+                       model="test)
 
 dataloader = torch.utils.data.DataLoader(dataset,
                                          batch_size=1,
