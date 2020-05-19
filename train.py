@@ -70,12 +70,7 @@ parser.add_argument("--outf", default="./outputs",
 parser.add_argument("--manualSeed", type=int,
                     help="Seed for initializing training. (default:none)")
 parser.add_argument("--ngpu", default=1, type=int,
-                    help="GPU id to use. (default:None)")
-parser.add_argument("--multiprocessing-distributed", action="store_true",
-                    help="Use multi-processing distributed training to launch "
-                         "N processes per node, which has N GPUs. This is the "
-                         "fastest way to use PyTorch for either single node or "
-                         "multi node data parallel training")
+                    help="GPU id to use. (default:1)")
 
 valid_dataset_name = ["apple2orange", "summer2winter_yosemite", "horse2zebra",
                       "monet2photo", "cezanne2photo", "ukiyoe2photo", "vangogh2photo",
