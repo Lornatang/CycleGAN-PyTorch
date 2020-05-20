@@ -31,8 +31,8 @@ We have two networks, G (Generator) and D (Discriminator).The Generator is a net
 #### Clone and install requirements
 
 ```bash
-$ git clone https://github.com/Lornatang/CycleGAN_PyTorch
-$ cd CycleGAN_PyTorch/
+$ git clone https://github.com/Lornatang/CycleGAN-PyTorch
+$ cd CycleGAN-PyTorch/
 $ pip3 install -r requirements.txt
 ```
 
@@ -67,25 +67,23 @@ $ python3 test.py horse2zebra --cuda
 
 ```text
 usage: train.py [-h] [--dataroot DATAROOT] [-j N] [--epochs N]
-                [--start-epoch N] [-b N] [--lr LR] [--beta1 BETA1]
-                [--beta2 BETA2] [-p N] [--world-size WORLD_SIZE] [--rank RANK]
-                [--dist-url DIST_URL] [--dist-backend DIST_BACKEND]
+                [--image-size IMAGE_SIZE] [--decay_epochs DECAY_EPOCHS] [-b N]
+                [--lr LR] [--beta1 BETA1] [--beta2 BETA2] [-p N] [--cuda]
                 [--netG_A2B NETG_A2B] [--netG_B2A NETG_B2A] [--netD_A NETD_A]
-                [--netD_B NETD_B] [--outf OUTF] [--image-size IMAGE_SIZE]
-                [--seed SEED] [--gpu GPU] [--multiprocessing-distributed]
+                [--netD_B NETD_B] [--outf OUTF] [--manualSeed MANUALSEED]
                 name
 ```
 
 #### Example (horse2zebra)
 
 ```bash
-$ python3 train.py horse2zebra --ngpu 1 --cuda
+$ python3 train.py horse2zebra --cuda
 ```
 
 If you want to load weights that you've trained before, run the following command.
 
 ```bash
-$ python3 train.py horse2zebra --ngpu 1 --netG_A2B weights/horse2zebra/netG_A2B_epoch_*.pth --netG_B2A weights/horse2zebra/netG_B2A_epoch_*.pth --netD_A weights/horse2zebra/netD_A_epoch_*.pth --netD_B weights/horse2zebra/netD_B_epoch_*.pth --cuda
+$ python3 train.py horse2zebra --netG_A2B weights/horse2zebra/netG_A2B_epoch_*.pth --netG_B2A weights/horse2zebra/netG_B2A_epoch_*.pth --netD_A weights/horse2zebra/netD_A_epoch_*.pth --netD_B weights/horse2zebra/netD_B_epoch_*.pth --cuda
 ```
 
 ### Contributing

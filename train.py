@@ -69,8 +69,6 @@ parser.add_argument("--outf", default="./outputs",
                     help="folder to output images. (default:`./outputs`).")
 parser.add_argument("--manualSeed", type=int,
                     help="Seed for initializing training. (default:none)")
-parser.add_argument("--ngpu", default=1, type=int,
-                    help="GPU id to use. (default:1)")
 
 valid_dataset_name = ["apple2orange", "summer2winter_yosemite", "horse2zebra",
                       "monet2photo", "cezanne2photo", "ukiyoe2photo", "vangogh2photo",
@@ -140,11 +138,6 @@ netG_B2A = Generator(3, 3).to(device)
 netD_A = Discriminator(3).to(device)
 netD_B = Discriminator(3).to(device)
 
-if args.cuda and ngpu > 1 and args.batch_size > 1:
-    netG_A2B = torch.nn.DataParallel(netG_A2B).to(device)
-    netG_B2A = torch.nn.DataParallel(netG_B2A).to(device)
-    netD_A = torch.nn.DataParallel(netD_A).to(device)
-    netD_B = torch.nn.DataParallel(netD_B).to(device)
 
 netG_A2B.apply(weights_init)
 netG_B2A.apply(weights_init)
