@@ -129,12 +129,13 @@ data/horse2zebra
 data/iphone2dslr_flower
 data/maps
 data/monet2photo
+data/selfie2anime
 data/summer2winter_yosemite
 data/ukiyoe2photo
 data/vangogh2photo
 
 outputs/
-gen/
+results/
 
 weights/ae_photos
 weights/apple2orange
@@ -144,6 +145,7 @@ weights/horse2zebra
 weights/iphone2dslr_flower
 weights/maps
 weights/monet2photo
+weights/selfie2anime
 weights/summer2winter_yosemite
 weights/ukiyoe2photo
 weights/vangogh2photo
