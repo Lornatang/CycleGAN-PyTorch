@@ -190,11 +190,11 @@ for epoch in range(0, args.epochs):
         # GAN loss
         # GAN loss D_A(G_A(A))
         fake_image_A = netG_B2A(real_image_B)
-        fake_output_A = netD_A(fake_image_A.detach())
+        fake_output_A = netD_A(fake_image_A)
         loss_GAN_B2A = adversarial_loss(fake_output_A, real_label)
         # GAN loss D_B(G_B(B))
         fake_image_B = netG_A2B(real_image_A)
-        fake_output_B = netD_B(fake_image_B.detach())
+        fake_output_B = netD_B(fake_image_B)
         loss_GAN_A2B = adversarial_loss(fake_output_B, real_label)
 
         # Cycle loss
