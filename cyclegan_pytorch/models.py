@@ -17,11 +17,11 @@ import torch.nn.functional as F
 
 
 class Discriminator(nn.Module):
-    def __init__(self, nc):
+    def __init__(self):
         super(Discriminator, self).__init__()
 
         self.main = nn.Sequential(
-            nn.Conv2d(nc, 64, 4, stride=2, padding=1),
+            nn.Conv2d(3, 64, 4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(64, 128, 4, stride=2, padding=1),
@@ -47,41 +47,47 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self):
         super(Generator, self).__init__()
+        self.main = nn.Sequential(
+            # Initial convolution block
+            nn.ReflectionPad2d(3),
+            nn.Conv2d(3, 64, 7),
+            nn.InstanceNorm2d(64),
+            nn.ReLU(inplace=True),
 
-        # Initial convolution block
-        layers = [nn.ReflectionPad2d(3),
-                  nn.Conv2d(in_channels, 64, 7),
-                  nn.InstanceNorm2d(64),
-                  nn.ReLU(inplace=True)]
+            # Downsampling
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(256),
+            nn.ReLU(inplace=True),
 
-        # Downsampling
-        layers += [nn.Conv2d(64, 128, 3, stride=2, padding=1),
-                   nn.InstanceNorm2d(128),
-                   nn.ReLU(inplace=True),
-                   nn.Conv2d(128, 256, 3, stride=2, padding=1),
-                   nn.InstanceNorm2d(256),
-                   nn.ReLU(inplace=True)]
+            # Residual blocks
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
+            ResidualBlock(256),
 
-        # Residual blocks
-        for _ in range(9):
-            layers += [ResidualBlock(256)]
+            # Upsampling
+            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
+            nn.InstanceNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+            nn.InstanceNorm2d(64),
+            nn.ReLU(inplace=True),
 
-        # Upsampling
-        layers += [nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
-                   nn.InstanceNorm2d(128),
-                   nn.ReLU(inplace=True),
-                   nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
-                   nn.InstanceNorm2d(64),
-                   nn.ReLU(inplace=True)]
-
-        # Output layer
-        layers += [nn.ReflectionPad2d(3),
-                   nn.Conv2d(64, out_channels, 7),
-                   nn.Tanh()]
-
-        self.main = nn.Sequential(*layers)
+            # Output layer
+            nn.ReflectionPad2d(3),
+            nn.Conv2d(64, 3, 7),
+            nn.Tanh()
+        )
 
     def forward(self, x):
         return self.main(x)
