@@ -324,6 +324,12 @@ for epoch in range(0, args.epochs):
     lr_scheduler_D_A.step()
     lr_scheduler_D_B.step()
 
+# save last check pointing
+torch.save(netG_A2B.state_dict(), f"weights/{args.name}/netG_A2B.pth")
+torch.save(netG_B2A.state_dict(), f"weights/{args.name}/netG_B2A.pth")
+torch.save(netD_A.state_dict(), f"weights/{args.name}/netD_A.pth")
+torch.save(netD_B.state_dict(), f"weights/{args.name}/netD_B.pth")
+
 plt.figure(figsize=(20, 5))
 plt.title("Generator and Discriminator Loss During Training")
 plt.plot(g_losses, label="G_Loss")
