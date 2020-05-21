@@ -32,7 +32,7 @@ parser.add_argument("--dataroot", type=str, default="./data",
 parser.add_argument("--dataset", type=str, default="horse2zebra",
                     help="dataset name. (default:`horse2zebra`)"
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
-                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, facades, selfie2anime"
+                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, facades, selfie2anime, "
                          "iphone2dslr_flower, ae_photos, ]")
 parser.add_argument("--cuda", action="store_true", help="Enables cuda")
 parser.add_argument("--outf", default="./results",

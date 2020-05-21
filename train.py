@@ -38,7 +38,7 @@ parser.add_argument("--dataroot", type=str, default="./data",
 parser.add_argument("--dataset", type=str, default="horse2zebra",
                     help="dataset name. (default:`horse2zebra`)"
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
-                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, facades, selfie2anime"
+                         "cezanne2photo, ukiyoe2photo, vangogh2photo, maps, facades, selfie2anime, "
                          "iphone2dslr_flower, ae_photos, ]")
 parser.add_argument("--epochs", default=200, type=int, metavar="N",
                     help="number of total epochs to run")
