@@ -149,3 +149,16 @@ weights/selfie2anime
 weights/summer2winter_yosemite
 weights/ukiyoe2photo
 weights/vangogh2photo
+
+weights/ae_photos.zip
+weights/apple2orange.zip
+weights/cezanne2photo.zip
+weights/facades.zip
+weights/horse2zebra.zip
+weights/iphone2dslr_flower.zip
+weights/maps.zip
+weights/monet2photo.zip
+weights/selfie2anime.zip
+weights/summer2winter_yosemite.zip
+weights/ukiyoe2photo.zip
+weights/vangogh2photo.zip
