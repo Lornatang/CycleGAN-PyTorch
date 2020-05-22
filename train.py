@@ -21,7 +21,6 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from PIL import Image
-from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from cyclegan_pytorch import DecayLR
@@ -269,14 +268,6 @@ for epoch in range(0, args.epochs):
             f"loss_G_cycle: {(loss_cycle_ABA + loss_cycle_BAB).item():.4f}")
 
         if i % args.print_freq == 0:
-            # Save Losses for plotting later
-            g_losses.append(errG.item())
-            d_losses.append((errD_A + errD_B).item())
-
-            identity_losses.append((loss_identity_A + loss_identity_B).item())
-            gan_losses.append((loss_GAN_A2B + loss_GAN_B2A).item())
-            cycle_losses.append((loss_cycle_ABA + loss_cycle_BAB).item())
-
             vutils.save_image(real_image_A,
                               f"{args.outf}/{args.dataset}/A/real_samples.png",
                               normalize=True)
@@ -310,15 +301,3 @@ torch.save(netG_A2B.state_dict(), f"weights/{args.dataset}/netG_A2B.pth")
 torch.save(netG_B2A.state_dict(), f"weights/{args.dataset}/netG_B2A.pth")
 torch.save(netD_A.state_dict(), f"weights/{args.dataset}/netD_A.pth")
 torch.save(netD_B.state_dict(), f"weights/{args.dataset}/netD_B.pth")
-
-plt.figure(figsize=(20, 5))
-plt.title("Generator and Discriminator Loss During Training")
-plt.plot(g_losses, label="G_Loss")
-plt.plot(d_losses, label="D_Loss")
-plt.plot(identity_losses, label="Identity_Loss")
-plt.plot(gan_losses, label="Gan_Loss")
-plt.plot(cycle_losses, label="Cycle_Loss")
-plt.xlabel("iterations")
-plt.ylabel("Loss")
-plt.legend()
-plt.savefig("result.png")
