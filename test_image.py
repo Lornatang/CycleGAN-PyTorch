@@ -12,7 +12,6 @@
 # limitations under the License.
 # ==============================================================================
 import argparse
-import os
 import random
 import time
 
