@@ -122,12 +122,12 @@ $ python3 train.py --dataset horse2zebra --cuda
 If you want to load weights that you've trained before, run the following command.
 
 ```bash
-# Example: horse2zebra
+# Example: horse2zebra for epoch 100
 $ python3 train.py --dataset horse2zebra \
-    --netG_A2B weights/selfie2anime/netG_A2B_epoch_100.pth \
-    --netG_B2A weights/selfie2anime/netG_B2A_epoch_100.pth \
-    --netD_A weights/selfie2anime/netD_A_epoch_100.pth \
-    --netD_B weights/selfie2anime/netD_B_epoch_100.pth --cuda
+    --netG_A2B weights/horse2zebra/netG_A2B_epoch_100.pth \
+    --netG_B2A weights/horse2zebra/netG_B2A_epoch_100.pth \
+    --netD_A weights/horse2zebra/netD_A_epoch_100.pth \
+    --netD_B weights/horse2zebra/netD_B_epoch_100.pth --cuda
 ```
 
 ### Contributing
