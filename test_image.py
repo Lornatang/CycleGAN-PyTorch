@@ -28,10 +28,8 @@ parser = argparse.ArgumentParser(
     description="PyTorch implements `Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks`")
 parser.add_argument("--file", type=str, default="assets/horse.png",
                     help="Image name. (default:`assets/horse.png`)")
-parser.add_argument("--model-name", type=str, default="horse2zebra",
-                    help="dataset name.  (default:`horse2zebra`)"
-                         "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
-                         "cezanne2photo, ukiyoe2photo, vangogh2photo, selfie2anime]")
+parser.add_argument("--model-name", type=str, default="weights/horse2zebra/netG_A2B.pth",
+                    help="dataset name.  (default:`weights/horse2zebra/netG_A2B.pth`).")
 parser.add_argument("--cuda", action="store_true", help="Enables cuda")
 parser.add_argument("--image-size", type=int, default=256,
                     help="size of the data crop (squared assumed). (default:256)")
@@ -58,7 +56,7 @@ device = torch.device("cuda:0" if args.cuda else "cpu")
 model = Generator().to(device)
 
 # Load state dicts
-model.load_state_dict(torch.load(os.path.join("weights", str(args.model_name), "netG_A2B.pth")))
+model.load_state_dict(torch.load(args.model_name))
 
 # Set model mode
 model.eval()

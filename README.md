@@ -65,8 +65,13 @@ $ python3 test.py --dataset horse2zebra --cuda
 For single image processing, use the following command.
 
 ```bash
-$ python3 test_image.py --file assets/horse.jpg --model-name horse2zebra --cuda
+$ python3 test_image.py --file assets/horse.png --model-name weights/horse2zebra/netG_A2B.pth --cuda
 ```
+
+InputA --> StyleB  --> RecoveryA
+
+<img src="assets/horse.png" title="InputA"/><img src="assets/fake_zebra.png" title="StyleB"><img src="assets/fake_horse.png" title="RecoveryA">
+
 
 ### Train
 
