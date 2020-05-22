@@ -26,9 +26,9 @@ from cyclegan_pytorch import Generator
 
 parser = argparse.ArgumentParser(
     description="PyTorch implements `Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks`")
-parser.add_argument("--file", type=str, default="assets/horse.jpg",
-                    help="Image name. (default:`assets/horse.jpg`)")
-parser.add_argument("--model-name", type=str, default="selfie2anime",
+parser.add_argument("--file", type=str, default="assets/horse.png",
+                    help="Image name. (default:`assets/horse.png`)")
+parser.add_argument("--model-name", type=str, default="horse2zebra",
                     help="dataset name.  (default:`horse2zebra`)"
                          "Option: [apple2orange, summer2winter_yosemite, horse2zebra, monet2photo, "
                          "cezanne2photo, ukiyoe2photo, vangogh2photo, selfie2anime]")
@@ -76,4 +76,4 @@ start = time.clock()
 fake_image = model(image)
 elapsed = (time.clock() - start)
 print(f"cost {elapsed:.4f}s")
-vutils.save_image(fake_image.detach(), "result.jpg", normalize=True)
+vutils.save_image(fake_image.detach(), "result.png", normalize=True)
