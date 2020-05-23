@@ -71,7 +71,7 @@ $ python3 test_image.py --file assets/horse.png --model-name weights/horse2zebra
 InputA --> StyleB  --> RecoveryA
 
 <img src="assets/horse.png" title="InputA"/><img src="assets/fake_zebra.png" title="StyleB"><img src="assets/fake_horse.png" title="RecoveryA">
-
+<img src="assets/apple.png" title="InputA"/><img src="assets/fake_orange.png" title="StyleB"><img src="assets/fake_apple.png" title="RecoveryA">
 
 ### Train
 
