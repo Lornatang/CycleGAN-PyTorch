@@ -129,9 +129,9 @@ if args.netG_A2B != "":
 if args.netG_B2A != "":
     netG_B2A.load_state_dict(torch.load(args.netG_B2A))
 if args.netD_A != "":
-    netG_A2B.load_state_dict(torch.load(args.netD_A))
+    netD_A.load_state_dict(torch.load(args.netD_A))
 if args.netD_B != "":
-    netG_B2A.load_state_dict(torch.load(args.netD_B))
+    netD_B.load_state_dict(torch.load(args.netD_B))
 
 # define loss function (adversarial_loss) and optimizer
 cycle_loss = torch.nn.L1Loss().to(device)
