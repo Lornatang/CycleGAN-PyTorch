@@ -15,7 +15,6 @@ import glob
 import os
 import random
 import time
-import warnings
 from threading import Thread
 
 import cv2
