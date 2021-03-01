@@ -69,8 +69,8 @@ pre_process = transforms.Compose([transforms.Resize(args.image_size),
 image = pre_process(image).unsqueeze(0)
 image = image.to(device)
 
-start = time.clock()
+start = timeit.default_timer()
 fake_image = model(image)
-elapsed = (time.clock() - start)
+elapsed = (timeit.default_timer() - start)
 print(f"cost {elapsed:.4f}s")
 vutils.save_image(fake_image.detach(), "result.png", normalize=True)
