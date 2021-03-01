@@ -13,7 +13,7 @@
 # ==============================================================================
 import argparse
 import random
-import time
+import timeit
 
 import torch.backends.cudnn as cudnn
 import torch.utils.data.distributed
