@@ -3,6 +3,8 @@
 ### Overview
 This repository contains an op-for-op PyTorch reimplementation of [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks](https://arxiv.org/abs/1703.10593).
 
+[Demo and Docker image on Replicate](https://replicate.ai/lornatang/cyclegan-pytorch)
+
 ### Table of contents
 1. [About Cycle Generative Adversarial Networks](#about-cycle-generative-adversarial-networks)
 2. [Model Description](#model-description)
