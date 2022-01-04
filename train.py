@@ -269,10 +269,10 @@ for epoch in range(0, args.epochs):
 
         if i % args.print_freq == 0:
             vutils.save_image(real_image_A,
-                              f"{args.outf}/{args.dataset}/A/real_samples_{epoch}_{i}.png",
+                              f"{args.outf}/{args.dataset}/A/real_samples_epoch_{epoch}_{i}.png",
                               normalize=True)
             vutils.save_image(real_image_B,
-                              f"{args.outf}/{args.dataset}/B/real_samples_{epoch}_{i}.png",
+                              f"{args.outf}/{args.dataset}/B/real_samples_epoch_{epoch}_{i}.png",
                               normalize=True)
 
             fake_image_A = 0.5 * (netG_B2A(real_image_B).data + 1.0)
