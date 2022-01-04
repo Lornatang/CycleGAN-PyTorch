@@ -269,20 +269,20 @@ for epoch in range(0, args.epochs):
 
         if i % args.print_freq == 0:
             vutils.save_image(real_image_A,
-                              f"{args.outf}/{args.dataset}/A/real_samples.png",
+                              f"{args.outf}/{args.dataset}/A/real_samples_{epoch}_{i}.png",
                               normalize=True)
             vutils.save_image(real_image_B,
-                              f"{args.outf}/{args.dataset}/B/real_samples.png",
+                              f"{args.outf}/{args.dataset}/B/real_samples_{epoch}_{i}.png",
                               normalize=True)
 
             fake_image_A = 0.5 * (netG_B2A(real_image_B).data + 1.0)
             fake_image_B = 0.5 * (netG_A2B(real_image_A).data + 1.0)
 
             vutils.save_image(fake_image_A.detach(),
-                              f"{args.outf}/{args.dataset}/A/fake_samples_epoch_{epoch}.png",
+                              f"{args.outf}/{args.dataset}/A/fake_samples_epoch_{epoch}_{i}.png",
                               normalize=True)
             vutils.save_image(fake_image_B.detach(),
-                              f"{args.outf}/{args.dataset}/B/fake_samples_epoch_{epoch}.png",
+                              f"{args.outf}/{args.dataset}/B/fake_samples_epoch_{epoch}_{i}.png",
                               normalize=True)
 
     # do check pointing
