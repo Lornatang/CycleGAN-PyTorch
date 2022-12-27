@@ -27,21 +27,20 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import save_image
 
+import config
 import model
-import train_config
 from dataset import CUDAPrefetcher, ImageDataset
-from imgproc import center_crop_torch
 from utils import load_pretrained_state_dict, load_resume_state_dict, make_directory, save_state_dict, DecayLR, \
     ReplayBuffer, Summary, AverageMeter, ProgressMeter
 
 
 def main():
-    device = torch.device(train_config.device)
+    device = torch.device(config.device)
     # Fixed random number seed
-    random.seed(train_config.seed)
-    np.random.seed(train_config.seed)
-    torch.manual_seed(train_config.seed)
-    torch.cuda.manual_seed_all(train_config.seed)
+    random.seed(config.seed)
+    np.random.seed(config.seed)
+    torch.manual_seed(config.seed)
+    torch.cuda.manual_seed_all(config.seed)
 
     # Because the size of the input image is fixed, the fixed CUDNN convolution method can greatly increase the running speed
     cudnn.benchmark = True
@@ -52,17 +51,17 @@ def main():
     # Initialize the number of training epochs
     start_epoch = 0
 
-    train_prefetcher = load_dataset(train_config.src_image_path,
-                                    train_config.dst_image_path,
-                                    train_config.unpaired,
-                                    train_config.resized_image_size,
-                                    train_config.batch_size,
-                                    train_config.num_workers,
+    train_prefetcher = load_dataset(config.src_image_path,
+                                    config.dst_image_path,
+                                    config.unpaired,
+                                    config.resized_image_size,
+                                    config.batch_size,
+                                    config.num_workers,
                                     device)
     d_A_model, d_B_model, g_A2B_model, g_B2A_model, ema_g_A2B_model, ema_g_B2A_model = build_model(
-        train_config.d_model_arch_name,
-        train_config.g_model_arch_name,
-        train_config.model_ema_decay,
+        config.d_model_arch_name,
+        config.g_model_arch_name,
+        config.model_ema_decay,
         device)
 
     cycle_criterion, identity_criterion, adversarial_criterion = define_loss(device)
@@ -70,54 +69,54 @@ def main():
                                                                  d_B_model,
                                                                  g_A2B_model,
                                                                  g_B2A_model,
-                                                                 train_config.optim_lr,
-                                                                 train_config.optim_betas,
-                                                                 train_config.optim_eps,
-                                                                 train_config.optim_weight_decay)
+                                                                 config.optim_lr,
+                                                                 config.optim_betas,
+                                                                 config.optim_eps,
+                                                                 config.optim_weight_decay)
     d_A_scheduler, d_B_scheduler, g_scheduler = define_scheduler(d_A_optimizer,
                                                                  d_B_optimizer,
                                                                  g_optimizer,
-                                                                 train_config.decay_epochs,
-                                                                 train_config.epochs)
+                                                                 config.decay_epochs,
+                                                                 config.epochs)
 
     # Load the pre-trained model weights and fine-tune the model
     print("Check whether to load pretrained model weights...")
-    if train_config.load_pretrained:
-        d_A_model = load_pretrained_state_dict(d_A_model, train_config.pretrained_d_src_model_weights_path)
-        d_B_model = load_pretrained_state_dict(d_B_model, train_config.pretrained_d_dst_model_weights_path)
-        g_A2B_model = load_pretrained_state_dict(g_A2B_model, train_config.pretrained_g_src_to_dst_model_weights_path)
-        g_B2A_model = load_pretrained_state_dict(g_B2A_model, train_config.pretrained_g_dst_to_src_model_weights_path)
+    if config.load_pretrained:
+        d_A_model = load_pretrained_state_dict(d_A_model, config.pretrained_d_src_model_weights_path)
+        d_B_model = load_pretrained_state_dict(d_B_model, config.pretrained_d_dst_model_weights_path)
+        g_A2B_model = load_pretrained_state_dict(g_A2B_model, config.pretrained_g_src_to_dst_model_weights_path)
+        g_B2A_model = load_pretrained_state_dict(g_B2A_model, config.pretrained_g_dst_to_src_model_weights_path)
         print(f"Loaded pretrained model weights successfully.")
     else:
         print("Pretrained model weights not found.")
 
     # Load the last training interruption node
     print("Check whether the resume model is restored...")
-    if train_config.load_resume:
+    if config.load_resume:
         d_A_model, _, start_epoch, d_A_optimizer, d_A_scheduler = load_resume_state_dict(
             d_A_model,
-            train_config.resume_d_src_model_weights_path,
+            config.resume_d_src_model_weights_path,
             None,
             d_A_optimizer,
             d_A_scheduler,
         )
         d_B_model, _, start_epoch, d_B_optimizer, d_B_scheduler = load_resume_state_dict(
             d_B_model,
-            train_config.resume_d_dst_model_weights_path,
+            config.resume_d_dst_model_weights_path,
             None,
             d_B_optimizer,
             d_B_scheduler,
         )
         g_A2B_model, ema_g_A2B_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
             g_A2B_model,
-            train_config.resume_g_src_to_dst_model_weights_path,
+            config.resume_g_src_to_dst_model_weights_path,
             ema_g_A2B_model,
             g_optimizer,
             g_scheduler,
         )
         g_B2A_model, ema_g_B2A_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
             g_B2A_model,
-            train_config.resume_g_dst_to_src_model_weights_path,
+            config.resume_g_dst_to_src_model_weights_path,
             ema_g_B2A_model,
             g_optimizer,
             g_scheduler,
@@ -127,20 +126,20 @@ def main():
         print("Resume training model not found. Start training from scratch.")
 
     # Create a experiment results
-    samples_dir = os.path.join("samples", train_config.exp_name)
-    results_dir = os.path.join("results", train_config.exp_name)
+    samples_dir = os.path.join("samples", config.exp_name)
+    results_dir = os.path.join("results", config.exp_name)
     make_directory(samples_dir)
     make_directory(results_dir)
     make_directory(os.path.join(samples_dir, "A"))
     make_directory(os.path.join(samples_dir, "B"))
 
     # Create training process log file
-    writer = SummaryWriter(os.path.join("samples", "logs", train_config.exp_name))
+    writer = SummaryWriter(os.path.join("samples", "logs", config.exp_name))
 
     fake_A_buffer = ReplayBuffer()
     fake_B_buffer = ReplayBuffer()
 
-    for epoch in range(start_epoch, train_config.epochs):
+    for epoch in range(start_epoch, config.epochs):
         train(d_A_model,
               d_B_model,
               g_A2B_model,
@@ -160,7 +159,7 @@ def main():
               scaler,
               writer,
               device,
-              train_config.print_frequency,
+              config.print_frequency,
               samples_dir)
         print("\n")
 
@@ -169,7 +168,7 @@ def main():
         d_B_scheduler.step()
         g_scheduler.step()
 
-        is_last = (epoch + 1) == train_config.epochs
+        is_last = (epoch + 1) == config.epochs
         save_state_dict({"epoch": epoch + 1,
                          "state_dict": d_A_model.state_dict(),
                          "optimizer": d_A_optimizer.state_dict(),
@@ -234,7 +233,7 @@ def load_dataset(
         src_image_path: str,
         dst_image_path: str,
         unpaired: bool,
-        resized_image_size: tuple[int, int],
+        resized_image_size: int,
         batch_size: int,
         num_workers: int,
         device: torch.device) -> [CUDAPrefetcher, CUDAPrefetcher]:
@@ -396,9 +395,9 @@ def train(
         # Transfer in-memory data to CUDA devices to speed up training
         real_image_A = batch_data["src"].to(device, non_blocking=True)
         real_image_B = batch_data["dst"].to(device, non_blocking=True)
-        identity_weight = torch.Tensor(train_config.identity_weight).to(device)
-        adversarial_weight = torch.Tensor(train_config.adversarial_weight).to(device)
-        cycle_weight = torch.Tensor(train_config.cycle_weight).to(device)
+        identity_weight = torch.Tensor(config.identity_weight).to(device)
+        adversarial_weight = torch.Tensor(config.adversarial_weight).to(device)
+        cycle_weight = torch.Tensor(config.cycle_weight).to(device)
 
         batch_size = real_image_A.size(0)
         real_label = torch.full((batch_size, 1), 1, device=device, dtype=torch.float32)
