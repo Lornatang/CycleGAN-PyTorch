@@ -14,6 +14,7 @@
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F_torch
+from torchvision.transforms import functional as F_vision
 
 __all__ = [
     "PathDiscriminator", "CycleNet",
@@ -27,8 +28,10 @@ class PathDiscriminator(nn.Module):
             in_channels: int = 3,
             out_channels: int = 1,
             channels: int = 64,
+            image_size: int = 70,
     ) -> None:
         super(PathDiscriminator, self).__init__()
+        self.image_size = image_size
 
         self.main = nn.Sequential(
             nn.Conv2d(in_channels, channels, (4, 4), (2, 2), (1, 1)),
@@ -50,6 +53,7 @@ class PathDiscriminator(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        x = F_vision.center_crop(x, [self.image_size, self.image_size])
         x = self.main(x)
         x = F_torch.avg_pool2d(x, x.size()[2:])
         x = torch.flatten(x, 1)
@@ -145,7 +149,7 @@ def _weights_init(m):
 
 
 def path_discriminator() -> PathDiscriminator:
-    model = PathDiscriminator(3, 3, 64)
+    model = PathDiscriminator(3, 3, 64, 70)
     model.apply(_weights_init)
 
     return model

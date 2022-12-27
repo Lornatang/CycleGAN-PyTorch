@@ -35,7 +35,8 @@ class ImageDataset(Dataset):
             self,
             src_images_dir: str,
             dst_images_dir: str,
-            unpaired: bool = True,
+            unpaired: bool,
+            resized_image_size: int,
     ) -> None:
         super(ImageDataset, self).__init__()
         self.src_image_file_names = [os.path.join(src_images_dir, image_file_name) for image_file_name in
@@ -43,6 +44,7 @@ class ImageDataset(Dataset):
         self.dst_image_file_names = [os.path.join(dst_images_dir, image_file_name) for image_file_name in
                                      os.listdir(dst_images_dir)]
         self.unpaired = unpaired
+        self.resized_image_size = resized_image_size
 
     def __getitem__(self, batch_index: int) -> [dict[str, Tensor], dict[str, Tensor]]:
         # Read a batch of image data
@@ -55,6 +57,10 @@ class ImageDataset(Dataset):
         # Normalize the image data
         src_image = src_image.astype(np.float32) / 255.
         dst_image = dst_image.astype(np.float32) / 255.
+
+        # Resized image
+        src_image = cv2.resize(src_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
+        src_image = cv2.resize(src_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
 
         # Image processing operations
         src_image = random_rotate(src_image, [90, 180, 270])

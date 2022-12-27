@@ -26,6 +26,7 @@ dst_image_path = f"./data/apple2orange/trainB"
 unpaired = True
 
 # Crop image for PathDiscriminator
+resized_image_size = 256
 crop_image_size = 70
 batch_size = 1
 num_workers = 4
@@ -48,9 +49,9 @@ resume_g_dst_to_src_model_weights_path = f""
 epochs = 200
 
 # Loss weight
-identity_weight = 5.0
-cycle_weight = 10.0
-adversarial_weight = 1.0
+identity_weight = [5.0]
+cycle_weight = [10.0]
+adversarial_weight = [1.0]
 
 # Optimizer parameter
 optim_lr = 2e-4

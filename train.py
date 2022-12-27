@@ -55,6 +55,7 @@ def main():
     train_prefetcher = load_dataset(train_config.src_image_path,
                                     train_config.dst_image_path,
                                     train_config.unpaired,
+                                    train_config.resized_image_size,
                                     train_config.batch_size,
                                     train_config.num_workers,
                                     device)
@@ -130,6 +131,8 @@ def main():
     results_dir = os.path.join("results", train_config.exp_name)
     make_directory(samples_dir)
     make_directory(results_dir)
+    make_directory(os.path.join(samples_dir, "A"))
+    make_directory(os.path.join(samples_dir, "B"))
 
     # Create training process log file
     writer = SummaryWriter(os.path.join("samples", "logs", train_config.exp_name))
@@ -231,11 +234,12 @@ def load_dataset(
         src_image_path: str,
         dst_image_path: str,
         unpaired: bool,
+        resized_image_size: tuple[int, int],
         batch_size: int,
         num_workers: int,
         device: torch.device) -> [CUDAPrefetcher, CUDAPrefetcher]:
     # Load train, test and valid datasets
-    train_datasets = ImageDataset(src_image_path, dst_image_path, unpaired)
+    train_datasets = ImageDataset(src_image_path, dst_image_path, unpaired, resized_image_size)
     # Generator all dataloader
     train_dataloader = DataLoader(train_datasets,
                                   batch_size=batch_size,
@@ -362,17 +366,11 @@ def train(
     # Print information of progress bar during training
     batch_time = AverageMeter("Time", ":6.3f", Summary.NONE)
     data_time = AverageMeter("Data", ":6.3f", Summary.NONE)
-    d_A_losses = AverageMeter("D(A) loss", ":6.6f", Summary.NONE)
-    d_B_losses = AverageMeter("D(B) loss", ":6.6f", Summary.NONE)
     d_losses = AverageMeter("D loss", ":6.6f", Summary.NONE)
-    g_identity_losses = AverageMeter("G identity loss", ":6.6f", Summary.NONE)
-    g_adversarial_losses = AverageMeter("G adversarial loss", ":6.6f", Summary.NONE)
-    g_cycle_losses = AverageMeter("G cycle loss", ":6.6f", Summary.NONE)
     g_losses = AverageMeter("G loss", ":6.6f", Summary.NONE)
 
     progress = ProgressMeter(batches,
-                             [batch_time, data_time, d_A_losses, d_B_losses, d_losses,
-                              g_identity_losses, g_adversarial_losses, g_cycle_losses, g_losses],
+                             [batch_time, data_time, d_losses, g_losses],
                              f"Epoch: [{epoch + 1}]")
 
     # Put the generative network model in training mode
@@ -426,12 +424,10 @@ def train(
             # GAN loss
             # GAN loss D_A(G_A(A))
             fake_image_A = g_B2A_model(real_image_B)
-            crop_fake_image_A = center_crop_torch(crop_fake_image_A, train_config.crop_image_size)
             fake_output_A = d_A_model(fake_image_A)
             loss_adversarial_B2A = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_A, real_label)))
             # GAN loss D_B(G_B(B))
             fake_image_B = g_A2B_model(real_image_A)
-            crop_fake_image_B = center_crop_torch(crop_fake_image_B, train_config.crop_image_size)
             fake_output_B = d_B_model(fake_image_B)
             loss_adversarial_A2B = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_B, real_label)))
 
@@ -510,12 +506,7 @@ def train(
         scaler.update()
 
         # Statistical loss value for terminal data output
-        d_A_losses.update(loss_d_A.item(), batch_size)
-        d_B_losses.update(loss_d_B.item(), batch_size)
         d_losses.update((loss_d_A + loss_d_B).item(), batch_size)
-        g_identity_losses.update((loss_identity_A + loss_identity_B).item(), batch_size)
-        g_adversarial_losses.update((loss_adversarial_A2B + loss_adversarial_B2A).item(), batch_size)
-        g_cycle_losses.update((loss_cycle_ABA + loss_cycle_BAB).item(), batch_size)
         g_losses.update(g_loss.item(), batch_size)
 
         # Calculate the time it takes to fully train a batch of data
