@@ -18,7 +18,7 @@ seed = 0
 d_model_arch_name = "path_discriminator"
 g_model_arch_name = "cyclenet"
 # Experiment name, easy to save weights and log files
-exp_name = "CycleGAN-cezanne2photo"
+exp_name = "CycleGAN-apple2orange"
 
 # Dataset config for training
 src_image_path = f"./data/apple2orange/trainA"
