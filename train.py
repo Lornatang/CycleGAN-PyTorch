@@ -400,8 +400,8 @@ def train(
         cycle_weight = torch.Tensor(config.cycle_weight).to(device)
 
         batch_size = real_image_A.size(0)
-        real_label = torch.full((batch_size, 1), 1, device=device, dtype=torch.float32)
-        fake_label = torch.full((batch_size, 1), 0, device=device, dtype=torch.float32)
+        real_label = torch.full((batch_size, 3), 1, device=device, dtype=torch.float32)
+        fake_label = torch.full((batch_size, 3), 0, device=device, dtype=torch.float32)
 
         ##############################################
         # (1) Update G network: Generators A2B and B2A
