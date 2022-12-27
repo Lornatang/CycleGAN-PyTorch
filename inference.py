@@ -48,8 +48,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_arch_name", type=str, default="cyclenet",
                         help="Generator arch model name.  Default: ``cyclenet``")
     parser.add_argument("--model_weights_path", type=str,
-                        default="./results/pretrained_models/CycleNet_A2B-Apple2Orange-dc1fdfa2.pth.tar",
-                        help="Generator model weights path.  Default: ``./results/pretrained_models/CycleNet_A2B-Apple2Orange-dc1fdfa2.pth.tar``")
+                        default="./results/pretrained_models/CycleNet_A2B-apple2orange-dc1fdfa2.pth.tar",
+                        help="Generator model weights path.  Default: ``./results/pretrained_models/CycleNet_A2B-apple2orange-dc1fdfa2.pth.tar``")
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda:0"],
                         help="Device. Default: ``cpu``")
     args = parser.parse_args()

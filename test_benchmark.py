@@ -67,8 +67,8 @@ if __name__ == "__main__":
                         help="Input image path. Default: ``./figure/apple.jpg``")
     parser.add_argument("--model_arch_name", type=str, default="cyclenet",
                         help="Generator arch model name.  Default: ``cyclenet``")
-    parser.add_argument("--model_weights_dir", type=str, default="./samples/CycleGAN-Apple2Orange",
-                        help="Generator model weights dir path.  Default: ``./samples/CycleGAN-Apple2Orange``")
+    parser.add_argument("--model_weights_dir", type=str, default="./samples/CycleGAN-apple2orange",
+                        help="Generator model weights dir path.  Default: ``./samples/CycleGAN-apple2orange``")
     parser.add_argument("--model_type", type=str, default="g_A2B", choices=["g_B2A", "g_A2B"],
                         help="Generator model dir path.  Default: ``g_B2A``")
     parser.add_argument("--device", type=str, default="cuda",
