@@ -215,18 +215,6 @@ def main():
                         "g_B2A_last.pth.tar",
                         True,
                         is_last)
-        save_state_dict({"epoch": epoch + 1,
-                         "state_dict": g_A2B_model.state_dict(),
-                         "ema_state_dict": ema_g_A2B_model.state_dict(),
-                         "optimizer": g_optimizer.state_dict(),
-                         "scheduler": g_scheduler.state_dict()},
-                        f"g_A2B_epoch_{epoch + 1}.pth.tar",
-                        samples_dir,
-                        results_dir,
-                        "g_A2B_best.pth.tar",
-                        "g_A2B_last.pth.tar",
-                        True,
-                        is_last)
 
 
 def load_dataset(
