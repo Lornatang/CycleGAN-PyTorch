@@ -33,17 +33,17 @@ num_workers = 4
 
 # Load the address of the pre-trained model
 load_pretrained = False
-pretrained_d_src_model_weights_path = f""
-pretrained_d_dst_model_weights_path = f""
-pretrained_g_src_to_dst_model_weights_path = f""
-pretrained_g_dst_to_src_model_weights_path = f""
+pretrained_d_A_model_weights_path = f""
+pretrained_d_B_model_weights_path = f""
+pretrained_g_A2B_model_weights_path = f""
+pretrained_g_B2A_model_weights_path = f""
 
 # Define this parameter when training is interrupted or migrated
 load_resume = False
-resume_d_src_model_weights_path = f""
-resume_d_dst_model_weights_path = f""
-resume_g_src_to_dst_model_weights_path = f""
-resume_g_dst_to_src_model_weights_path = f""
+resume_d_A_model_weights_path = f""
+resume_d_B_model_weights_path = f""
+resume_g_A2B_model_weights_path = f""
+resume_g_B2A_model_weights_path = f""
 
 # Total num epochs
 epochs = 200

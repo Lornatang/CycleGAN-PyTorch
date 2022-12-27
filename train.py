@@ -82,10 +82,10 @@ def main():
     # Load the pre-trained model weights and fine-tune the model
     print("Check whether to load pretrained model weights...")
     if config.load_pretrained:
-        d_A_model = load_pretrained_state_dict(d_A_model, config.pretrained_d_src_model_weights_path)
-        d_B_model = load_pretrained_state_dict(d_B_model, config.pretrained_d_dst_model_weights_path)
-        g_A2B_model = load_pretrained_state_dict(g_A2B_model, config.pretrained_g_src_to_dst_model_weights_path)
-        g_B2A_model = load_pretrained_state_dict(g_B2A_model, config.pretrained_g_dst_to_src_model_weights_path)
+        d_A_model = load_pretrained_state_dict(d_A_model, config.pretrained_d_A_model_weights_path)
+        d_B_model = load_pretrained_state_dict(d_B_model, config.pretrained_d_B_model_weights_path)
+        g_A2B_model = load_pretrained_state_dict(g_A2B_model, config.pretrained_g_A2B_model_weights_path)
+        g_B2A_model = load_pretrained_state_dict(g_B2A_model, config.pretrained_g_B2A_model_weights_path)
         print(f"Loaded pretrained model weights successfully.")
     else:
         print("Pretrained model weights not found.")
@@ -95,28 +95,28 @@ def main():
     if config.load_resume:
         d_A_model, _, start_epoch, d_A_optimizer, d_A_scheduler = load_resume_state_dict(
             d_A_model,
-            config.resume_d_src_model_weights_path,
+            config.resume_d_A_model_weights_path,
             None,
             d_A_optimizer,
             d_A_scheduler,
         )
         d_B_model, _, start_epoch, d_B_optimizer, d_B_scheduler = load_resume_state_dict(
             d_B_model,
-            config.resume_d_dst_model_weights_path,
+            config.resume_d_B_model_weights_path,
             None,
             d_B_optimizer,
             d_B_scheduler,
         )
         g_A2B_model, ema_g_A2B_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
             g_A2B_model,
-            config.resume_g_src_to_dst_model_weights_path,
+            config.resume_g_A2B_model_weights_path,
             ema_g_A2B_model,
             g_optimizer,
             g_scheduler,
         )
         g_B2A_model, ema_g_B2A_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
             g_B2A_model,
-            config.resume_g_dst_to_src_model_weights_path,
+            config.resume_g_B2A_model_weights_path,
             ema_g_B2A_model,
             g_optimizer,
             g_scheduler,
