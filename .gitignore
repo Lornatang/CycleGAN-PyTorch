@@ -20,6 +20,8 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -56,6 +58,7 @@ coverage.xml
 *.log
 local_settings.py
 db.sqlite3
+db.sqlite3-journal
 
 # Flask stuff:
 instance/
@@ -79,6 +82,13 @@ ipython_config.py
 
 # pyenv
 .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
 
 # celery beat schedule file
 celerybeat-schedule
@@ -104,7 +114,6 @@ venv.bak/
 
 # mkdocs documentation
 /site
-
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -113,52 +122,15 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# IDE file
+# custom
 .idea
 .vscode
 
-# Mac file
+# Mac configure file.
 .DS_Store
 
-# custom
-data/ae_photos
-data/apple2orange
-data/cezanne2photo
-data/facades
-data/horse2zebra
-data/iphone2dslr_flower
-data/maps
-data/monet2photo
-data/selfie2anime
-data/summer2winter_yosemite
-data/ukiyoe2photo
-data/vangogh2photo
-
-outputs/
-results/
-
-weights/ae_photos
-weights/apple2orange
-weights/cezanne2photo
-weights/facades
-weights/horse2zebra
-weights/iphone2dslr_flower
-weights/maps
-weights/monet2photo
-weights/selfie2anime
-weights/summer2winter_yosemite
-weights/ukiyoe2photo
-weights/vangogh2photo
-
-weights/ae_photos.zip
-weights/apple2orange.zip
-weights/cezanne2photo.zip
-weights/facades.zip
-weights/horse2zebra.zip
-weights/iphone2dslr_flower.zip
-weights/maps.zip
-weights/monet2photo.zip
-weights/selfie2anime.zip
-weights/summer2winter_yosemite.zip
-weights/ukiyoe2photo.zip
-weights/vangogh2photo.zip
+# Program run create directory.
+data
+results
+results/pretrained_models
+samples
