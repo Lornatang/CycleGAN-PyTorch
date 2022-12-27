@@ -1,5 +1,7 @@
-pillow
-tqdm
-matplotlib
-opencv-python
-numpy
+torch>=1.13.0
+torchvision>=0.14.0
+tqdm>=4.63.1
+numpy>=1.23.5
+opencv-python>=4.6.0.66
+typing>=3.7.4.3
+Pillow>=9.3.0
