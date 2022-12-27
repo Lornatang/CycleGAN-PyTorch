@@ -5,3 +5,4 @@ numpy>=1.23.5
 opencv-python>=4.6.0.66
 typing>=3.7.4.3
 Pillow>=9.3.0
+natsort>=8.1.0

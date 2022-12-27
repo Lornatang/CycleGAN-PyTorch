@@ -25,7 +25,6 @@ __all__ = [
     "image_to_tensor", "tensor_to_image",
     "preprocess_one_image",
     "center_crop", "random_crop", "random_rotate", "random_vertically_flip", "random_horizontally_flip",
-    "center_crop_torch",
 ]
 
 
@@ -85,14 +84,14 @@ def tensor_to_image(tensor: Tensor, range_norm: bool, half: bool) -> Any:
     return image
 
 
-def preprocess_one_image(image_path: str, device: torch.device) -> Tensor:
+def preprocess_one_image(image_path: str, range_norm: bool, half: bool, device: torch.device) -> Tensor:
     image = cv2.imread(image_path).astype(np.float32) / 255.0
 
     # BGR to RGB
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # Convert image data to pytorch format data
-    tensor = image_to_tensor(image, False, False).unsqueeze_(0)
+    tensor = image_to_tensor(image, range_norm, half).unsqueeze_(0)
 
     # Transfer tensor channel image format data to CUDA device
     tensor = tensor.to(device, non_blocking=True)
@@ -211,42 +210,3 @@ def random_vertically_flip(image: np.ndarray, p: float = 0.5) -> np.ndarray:
         vertically_flip_image = image
 
     return vertically_flip_image
-
-
-def center_crop_torch(
-        images: ndarray | Tensor | list[ndarray] | list[Tensor],
-        patch_size: int,
-) -> [ndarray, ndarray] or [Tensor, Tensor] or [list[ndarray], list[ndarray]] or [list[Tensor], list[Tensor]]:
-    if not isinstance(images, list):
-        images = [images]
-
-    # detect input image type
-    input_type = "Tensor" if torch.is_tensor(images[0]) else "Numpy"
-
-    if input_type == "Tensor":
-        image_height, image_width = images[0].size()[-2:]
-    else:
-        image_height, image_width = images[0].shape[0:2]
-
-    # Just need to find the top and left coordinates of the image
-    top = (image_height - patch_size) // 2
-    left = (image_width - patch_size) // 2
-
-    # Capture low-resolution images
-    if input_type == "Tensor":
-        images = [image[
-                  :,
-                  :,
-                  top: top + patch_size,
-                  left: left + patch_size] for image in images]
-    else:
-        images = [image[
-                  top: top + patch_size,
-                  left: left + patch_size,
-                  ...] for image in images]
-
-    # When the input has only one image
-    if len(images) == 1:
-        images = images[0]
-
-    return images
