@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_weights_dir", type=str, default="./samples/CycleGAN-apple2orange",
                         help="Generator model weights dir path.  Default: ``./samples/CycleGAN-apple2orange``")
     parser.add_argument("--model_type", type=str, default="g_A2B", choices=["g_B2A", "g_A2B"],
-                        help="Generator model dir path.  Default: ``g_B2A``")
+                        help="Generator model dir path.  Default: ``g_A2B``")
     parser.add_argument("--device", type=str, default="cuda",
                         help="Device. Default: ``cuda``.")
     args = parser.parse_args()
