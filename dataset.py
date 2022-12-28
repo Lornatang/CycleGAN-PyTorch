@@ -50,7 +50,7 @@ class ImageDataset(Dataset):
         # Read a batch of image data
         src_image = cv2.imread(self.src_image_file_names[batch_index])
         if self.unpaired:
-            dst_image = cv2.imread(self.dst_image_file_names[random.randint(0, len(self.src_image_file_names))])
+            dst_image = cv2.imread(self.dst_image_file_names[random.randint(0, len(self.src_image_file_names) - 1)])
         else:
             dst_image = cv2.imread(self.dst_image_file_names[batch_index])
 
