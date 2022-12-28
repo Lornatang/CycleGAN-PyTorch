@@ -39,7 +39,7 @@ def main(args):
     model_weights_list = natsorted(glob(f"{args.model_weights_dir}/{args.model_type}*"))
     for model_weights in model_weights_list:
         print(f"Process `{model_weights}`...")
-        g_model = load_pretrained_state_dict(g_model, args.model_weights_path)
+        g_model = load_pretrained_state_dict(g_model, model_weights)
         g_model.eval()
 
         with torch.no_grad():
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                         help="Generator arch model name.  Default: ``cyclenet``")
     parser.add_argument("--model_weights_dir", type=str, default="./samples/CycleGAN-apple2orange",
                         help="Generator model weights dir path.  Default: ``./samples/CycleGAN-apple2orange``")
-    parser.add_argument("--model_type", type=str, default="g_A2B", choices=["g_B2A", "g_A2B"],
+    parser.add_argument("--model_type", type=str, default="g_A2B", choices=["g_A2B", "g_B2A"],
                         help="Generator model dir path.  Default: ``g_A2B``")
     parser.add_argument("--device", type=str, default="cuda",
                         help="Device. Default: ``cuda``.")
