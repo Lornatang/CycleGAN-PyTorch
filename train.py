@@ -514,12 +514,19 @@ def train(
             writer.add_scalar("Train/G_Loss", g_loss.item(), total_batch_index)
             progress.display(batch_index + 1)
 
-            # Save training image
+        # Preload the next batch of data
+        batch_data = train_prefetcher.next()
+
+        # Add 1 to the number of data batches to ensure that the terminal prints data normally
+        batch_index += 1
+
+        # Save training image
+        if batch_index == batches:
             save_image(real_image_A,
-                       f"{samples_dir}/A/real_image_A_{total_batch_index:04d}.jpg",
+                       f"{samples_dir}/A/real_image_A_epoch_{epoch:04d}.jpg",
                        normalize=True)
             save_image(real_image_B,
-                       f"{samples_dir}/B/real_image_B_{total_batch_index:04d}.jpg",
+                       f"{samples_dir}/B/real_image_B_epoch_{epoch:04d}.jpg",
                        normalize=True)
 
             # Normalize [-1, 1] to [0, 1]
@@ -527,17 +534,11 @@ def train(
             fake_image_B = 0.5 * (g_A2B_model(real_image_A).data + 1.0)
 
             save_image(fake_image_A.detach(),
-                       f"{samples_dir}/A/fake_image_A_{total_batch_index:04d}.jpg",
+                       f"{samples_dir}/A/fake_image_A_epoch_{epoch:04d}.jpg",
                        normalize=True)
             save_image(fake_image_B.detach(),
-                       f"{samples_dir}/B/fake_image_B_{total_batch_index:04d}.jpg",
+                       f"{samples_dir}/B/fake_image_B_epoch_{epoch:04d}.jpg",
                        normalize=True)
-
-        # Preload the next batch of data
-        batch_data = train_prefetcher.next()
-
-        # Add 1 to the number of data batches to ensure that the terminal prints data normally
-        batch_index += 1
 
 
 if __name__ == "__main__":
