@@ -60,7 +60,7 @@ class ImageDataset(Dataset):
 
         # Resized image
         src_image = cv2.resize(src_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
-        src_image = cv2.resize(src_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
+        dst_image = cv2.resize(dst_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
 
         # Image processing operations
         src_image = random_rotate(src_image, [90, 180, 270])
