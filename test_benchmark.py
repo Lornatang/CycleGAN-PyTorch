@@ -16,8 +16,9 @@ import os
 from glob import glob
 
 import torch
-from torchvision.utils import save_image
 from natsort import natsorted
+from torchvision.utils import save_image
+
 import model
 from imgproc import preprocess_one_image
 from utils import make_directory, load_pretrained_state_dict
@@ -28,7 +29,7 @@ def main(args):
     benchmark_dir = f"./results/benchmark/{os.path.basename(args.model_weights_dir)}/{args.model_type}"
     make_directory(benchmark_dir)
 
-    device = choice_device(args.device)
+    device = torch.device(args.device)
     g_model = model.__dict__[args.model_arch_name]()
     g_model = g_model.to(device)
 
@@ -49,18 +50,6 @@ def main(args):
                        normalize=True)
 
 
-def choice_device(device: str = "cpu") -> torch.device:
-    # Select model processing equipment type
-    if device == "cuda":
-        device = torch.device("cuda", 0)
-    elif device[:4] == "cuda":
-        device = torch.device(device)
-    else:
-        device = torch.device("cpu")
-
-    return device
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_path", type=str, default="./figure/apple.jpg",
@@ -71,8 +60,8 @@ if __name__ == "__main__":
                         help="Generator model weights dir path.  Default: ``./samples/CycleGAN-apple2orange``")
     parser.add_argument("--model_type", type=str, default="g_A2B", choices=["g_A2B", "g_B2A"],
                         help="Generator model dir path.  Default: ``g_A2B``")
-    parser.add_argument("--device", type=str, default="cuda",
-                        help="Device. Default: ``cuda``.")
+    parser.add_argument("--device", type=str, default="cuda:0", choices=["cpu", "cuda:0"],
+                        help="Device. Default: ``cuda:0``.")
     args = parser.parse_args()
 
     main(args)
