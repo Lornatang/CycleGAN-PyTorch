@@ -75,9 +75,9 @@ class ImageDataset(Dataset):
         dst_image = cv2.cvtColor(dst_image, cv2.COLOR_BGR2RGB)
 
         # Convert image data into Tensor stream format (PyTorch).
-        # Note: The range of input and output is between [0, 1]
-        src_tensor = image_to_tensor(src_image, False, False)
-        dst_tensor = image_to_tensor(dst_image, False, False)
+        # Note: The range of input and output is between [-1, 1]
+        src_tensor = image_to_tensor(src_image, True, False)
+        dst_tensor = image_to_tensor(dst_image, True, False)
 
         return {"src": src_tensor, "dst": dst_tensor}
 
