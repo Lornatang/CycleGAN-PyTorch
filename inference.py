@@ -43,13 +43,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--inputs_path", type=str, default="./figure/apple.jpg",
                         help="Input image path. Default: ``./figure/apple.jpg``")
-    parser.add_argument("--output_path", type=str, default="./results/output.jpg",
-                        help="Output image path. Default: ``./results/output.jpg``")
+    parser.add_argument("--output_path", type=str, default="./figure/fake_apple.jpg",
+                        help="Output image path. Default: ``./figure/fake_apple.jpg``")
     parser.add_argument("--model_arch_name", type=str, default="cyclenet",
                         help="Generator arch model name.  Default: ``cyclenet``")
     parser.add_argument("--model_weights_path", type=str,
-                        default="./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-dc1fdfa2.pth.tar",
-                        help="Generator model weights path.  Default: ``./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-dc1fdfa2.pth.tar``")
+                        default="./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-e23a4e23.pth.tar",
+                        help="Generator model weights path.  Default: ``./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-e23a4e23.pth.tar``")
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda:0"],
                         help="Device. Default: ``cpu``")
     args = parser.parse_args()
