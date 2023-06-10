@@ -84,16 +84,16 @@ def main():
     print("Check whether to load pretrained model weights...")
     if config["TRAIN"]["CHECKPOINT"]["LOAD_PRETRAINED"]:
         g_A2B_model = load_pretrained_state_dict(g_A2B_model,
-                                                 config["MODEL"]["G"]["COMPILED"],
+                                                 False,
                                                  config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_A2B_MODEL_WEIGHTS_PATH"])
         g_B2A_model = load_pretrained_state_dict(g_B2A_model,
-                                                 config["MODEL"]["G"]["COMPILED"],
+                                                 False,
                                                  config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_B2A_MODEL_WEIGHTS_PATH"])
         d_A_model = load_pretrained_state_dict(d_A_model,
-                                               config["MODEL"]["D"]["COMPILED"],
+                                               False,
                                                config["TRAIN"]["CHECKPOINT"]["PRETRAINED_D_A_MODEL_WEIGHTS_PATH"])
         d_B_model = load_pretrained_state_dict(d_B_model,
-                                               config["MODEL"]["D"]["COMPILED"],
+                                               False,
                                                config["TRAIN"]["CHECKPOINT"]["PRETRAINED_D_B_MODEL_WEIGHTS_PATH"])
         print(f"Loaded pretrained model weights successfully.")
     else:
