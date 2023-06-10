@@ -1,4 +1,4 @@
-# Copyright 2022 Dakewe Biotech Corporation. All Rights Reserved.
+# Copyright 2023 Lorna. All Rights Reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
@@ -14,24 +14,62 @@
 import os
 import random
 import shutil
+from collections import OrderedDict
 from enum import Enum
+from typing import Any
 
 import torch
-from torch import nn, optim, Tensor
+import torch.backends.mps
+from torch import nn, Tensor
+from torch.nn import Module
+from torch.optim import Optimizer
 
 __all__ = [
-    "load_state_dict", "load_pretrained_state_dict", "load_resume_state_dict", "make_directory", "save_state_dict",
+    "load_state_dict", "load_pretrained_state_dict", "load_resume_state_dict", "make_directory", "save_checkpoint",
     "ReplayBuffer", "DecayLR", "Summary", "AverageMeter", "ProgressMeter",
 ]
 
 
 def load_state_dict(
         model: nn.Module,
+        compile_mode: bool,
         state_dict: dict,
-) -> nn.Module:
-    model_state_dict = model.state_dict()
+):
+    """Load model weights and parameters
 
-    # Traverse the model parameters and load the parameters in the pre-trained model into the current model
+    Args:
+        model (nn.Module): model
+        compile_mode (bool): Enable model compilation mode, `False` means not compiled, `True` means compiled
+        state_dict (dict): model weights and parameters waiting to be loaded
+
+    Returns:
+        model (nn.Module): model after loading weights and parameters
+    """
+
+    # Define compilation status keywords
+    compile_state = "_orig_mod"
+
+    # Process parameter dictionary
+    model_state_dict = model.state_dict()
+    new_state_dict = OrderedDict()
+
+    # Check if the model has been compiled
+    for k, v in state_dict.items():
+        current_compile_state = k.split(".")[0]
+        if compile_mode and current_compile_state != compile_state:
+            raise RuntimeError("The model is not compiled. Please use `model = torch.compile(model)`.")
+
+        # load the model
+        if compile_mode and current_compile_state != compile_state:
+            name = compile_state + "." + k
+        elif not compile_mode and current_compile_state == compile_state:
+            name = k[10:]
+        else:
+            name = k
+        new_state_dict[name] = v
+    state_dict = new_state_dict
+
+    # Traverse the model parameters, load the parameters in the pre-trained model into the current model
     new_state_dict = {k: v for k, v in state_dict.items() if
                       k in model_state_dict.keys() and v.size() == model_state_dict[k].size()}
 
@@ -44,32 +82,69 @@ def load_state_dict(
 
 def load_pretrained_state_dict(
         model: nn.Module,
+        compile_state: bool,
         model_weights_path: str,
-) -> nn.Module:
-    checkpoint = torch.load(model_weights_path, map_location=lambda storage, loc: storage)
-    model = load_state_dict(model, checkpoint["state_dict"])
+) -> Module:
+    """Load pre-trained model weights
 
+    Args:
+        model (nn.Module): model
+        compile_state (bool): model compilation state, `False` means not compiled, `True` means compiled
+        model_weights_path (str): model weights path
+
+    Returns:
+        model (nn.Module): the model after loading the pre-trained model weights
+    """
+
+    checkpoint = torch.load(model_weights_path, map_location=lambda storage, loc: storage)
+    state_dict = checkpoint["state_dict"]
+    model = load_state_dict(model, compile_state, state_dict)
     return model
 
 
 def load_resume_state_dict(
         model: nn.Module,
+        ema_model: nn.Module | None,
+        optimizer: Optimizer,
+        scheduler: Any,
+        compile_state: bool,
         model_weights_path: str,
-        ema_model: nn.Module or None,
-        optimizer: optim.Optimizer,
-        scheduler: optim.lr_scheduler,
-) -> tuple[nn.Module, nn.Module, int, optim.Optimizer, optim.lr_scheduler]:
+) -> tuple[Any, Module | None | Any, Any, Optimizer, Any] | tuple[Any, Module | None | Any, Any, Optimizer]:
+    """Restore training model weights
+
+    Args:
+        model (nn.Module): model
+        ema_model (nn.Module): EMA model
+        optimizer (nn.optim): optimizer
+        scheduler (nn.optim.lr_scheduler): learning rate scheduler
+        compile_state (bool, optional): Whether the model has been compiled
+        model_weights_path (str): model weights path
+    Returns:
+        model (nn.Module): model after loading weights
+        ema_model (nn.Module): EMA model after loading weights
+        start_epoch (int): start epoch
+        optimizer (nn.optim): optimizer after loading weights
+        scheduler (nn.optim.lr_scheduler): learning rate scheduler after loading weights
+    """
+    # Load model weights
     checkpoint = torch.load(model_weights_path, map_location=lambda storage, loc: storage)
 
+    # Load training node parameters
     start_epoch = checkpoint["epoch"]
+    state_dict = checkpoint["state_dict"]
+    ema_state_dict = checkpoint["ema_state_dict"] if "ema_state_dict" in checkpoint else None
 
-    model = load_state_dict(model, checkpoint["state_dict"])
-    if checkpoint["ema_state_dict"] is not None:
-        ema_model = load_state_dict(ema_model, checkpoint["ema_state_dict"])
+    model = load_state_dict(model, compile_state, state_dict)
+    if ema_state_dict is not None:
+        ema_model = load_state_dict(ema_model, compile_state, ema_state_dict)
+
     optimizer.load_state_dict(checkpoint["optimizer"])
-    scheduler.load_state_dict(checkpoint["scheduler"])
 
-    return model, ema_model, start_epoch, optimizer, scheduler
+    if scheduler is not None:
+        scheduler.load_state_dict(checkpoint["scheduler"])
+        return model, ema_model, start_epoch, optimizer, scheduler
+    else:
+        return model, ema_model, start_epoch, optimizer
 
 
 def make_directory(dir_path: str) -> None:
@@ -77,7 +152,7 @@ def make_directory(dir_path: str) -> None:
         os.makedirs(dir_path)
 
 
-def save_state_dict(
+def save_checkpoint(
         state_dict: dict,
         file_name: str,
         samples_dir: str,

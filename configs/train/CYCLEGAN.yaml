@@ -1,0 +1,84 @@
+# experiment name
+EXP_NAME: CycleGAN-apple2orange
+# random number seed
+SEED: 0
+# run device model
+DEVICE_ID: 0
+
+# Model define
+MODEL:
+  EMA:
+    ENABLE: True
+    DECAY: 0.999
+    COMPILED: True
+  G:
+    NAME: cyclenet
+    IN_CHANNELS: 3
+    OUT_CHANNELS: 3
+    CHANNELS: 64
+    COMPILED: True
+  D:
+    NAME: path_discriminator
+    IN_CHANNELS: 3
+    OUT_CHANNELS: 1
+    CHANNELS: 64
+    IMAGE_SIZE: 70
+    COMPILED: False
+
+TRAIN:
+  DATASET:
+    SRC_IMAGE_PATH: ./data/apple2orange/trainA
+    DST_IMAGE_PATH: ./data/apple2orange/trainB
+    UNPAIRED: True
+
+    RESIZED_IMAGE_SIZE: 256
+    CROP_IMAGE_SIZE: 70
+
+  # Model file address, used for pre-training and recovery training
+  CHECKPOINT:
+    LOAD_PRETRAINED: False
+    PRETRAINED_G_A2B_MODEL_WEIGHTS_PATH:
+    PRETRAINED_G_B2A_MODEL_WEIGHTS_PATH:
+    PRETRAINED_D_A_MODEL_WEIGHTS_PATH:
+    PRETRAINED_D_B_MODEL_WEIGHTS_PATH:
+
+    LOAD_RESUME: False
+    RESUME_G_A2B_MODEL_WEIGHTS_PATH:
+    RESUME_G_B2A_MODEL_WEIGHTS_PATH:
+    RESUME_D_A_MODEL_WEIGHTS_PATH:
+    RESUME_D_B_MODEL_WEIGHTS_PATH:
+
+  # training hyperparameters
+  HYP:
+    IMGS_PER_BATCH: 1
+    SHUFFLE: True
+    NUM_WORKERS: 4
+    PIN_MEMORY: True
+    PERSISTENT_WORKERS: True
+
+    EPOCHS: 200
+
+  OPTIM:
+    NAME: Adam
+    LR: 0.0002
+    BETAS: [ 0.5, 0.999 ]
+    EPS: 0.0001
+    WEIGHT_DECAY: 0.0
+
+  LR_SCHEDULER:
+    NAME: LambdaLR
+    DECAY_EPOCHS: 100
+
+  # Loss function
+  LOSSES:
+    IDENTITY_LOSS:
+      NAME: L1Loss
+      WEIGHT: [ 5.0 ]
+    ADVERSARIAL_LOSS:
+      NAME: MSELoss
+      WEIGHT: [ 1.0 ]
+    CYCLE_LOSS:
+      NAME: L1Loss
+      WEIGHT: [ 10.0 ]
+
+  PRINT_FREQ: 100

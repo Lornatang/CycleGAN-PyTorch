@@ -22,7 +22,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
-from imgproc import image_to_tensor, random_rotate, random_horizontally_flip, random_vertically_flip
+from imgproc import image_to_tensor
 
 __all__ = [
     "ImageDataset",
@@ -61,14 +61,6 @@ class ImageDataset(Dataset):
         # Resized image
         src_image = cv2.resize(src_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
         dst_image = cv2.resize(dst_image, (self.resized_image_size, self.resized_image_size), interpolation=cv2.INTER_CUBIC)
-
-        # Image processing operations
-        src_image = random_rotate(src_image, [90, 180, 270])
-        src_image = random_horizontally_flip(src_image, 0.5)
-        src_image = random_vertically_flip(src_image, 0.5)
-        dst_image = random_rotate(dst_image, [90, 180, 270])
-        dst_image = random_horizontally_flip(dst_image, 0.5)
-        dst_image = random_vertically_flip(dst_image, 0.5)
 
         # BGR convert RGB
         src_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2RGB)

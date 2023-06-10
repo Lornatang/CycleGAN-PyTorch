@@ -1,4 +1,4 @@
-# Copyright 2022 Dakewe Biotech Corporation. All Rights Reserved.
+# Copyright 2022 Lorna. All Rights Reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
@@ -25,10 +25,10 @@ __all__ = [
 class PathDiscriminator(nn.Module):
     def __init__(
             self,
-            in_channels: int = 3,
-            out_channels: int = 1,
-            channels: int = 64,
-            image_size: int = 70,
+            in_channels: int,
+            out_channels: int,
+            channels: int,
+            image_size: int,
     ) -> None:
         super(PathDiscriminator, self).__init__()
         self.image_size = image_size
@@ -53,6 +53,8 @@ class PathDiscriminator(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        if x.shape[2] < self.image_size or x.shape[3] < self.image_size:
+            x = F_vision.resize(x, [self.image_size, self.image_size])
         x = F_vision.center_crop(x, [self.image_size, self.image_size])
         x = self.main(x)
         x = F_torch.avg_pool2d(x, x.size()[2:])
@@ -64,9 +66,9 @@ class PathDiscriminator(nn.Module):
 class CycleNet(nn.Module):
     def __init__(
             self,
-            in_channels: int = 3,
-            out_channels: int = 3,
-            channels: int = 64,
+            in_channels: int,
+            out_channels: int,
+            channels: int,
     ) -> None:
         super(CycleNet, self).__init__()
         self.main = nn.Sequential(
@@ -148,15 +150,15 @@ def _weights_init(m):
         torch.nn.init.zeros_(m.bias)
 
 
-def path_discriminator() -> PathDiscriminator:
-    model = PathDiscriminator(3, 3, 64, 70)
+def path_discriminator(**kwargs) -> PathDiscriminator:
+    model = PathDiscriminator(**kwargs)
     model.apply(_weights_init)
 
     return model
 
 
-def cyclenet() -> CycleNet:
-    model = CycleNet(3, 3, 64)
+def cyclenet(**kwargs) -> CycleNet:
+    model = CycleNet(**kwargs)
     model.apply(_weights_init)
 
     return model

@@ -1,4 +1,4 @@
-# Copyright 2022 Dakewe Biotech Corporation. All Rights Reserved.
+# Copyright 2023 Dakewe Biotech Corporation. All Rights Reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
@@ -19,12 +19,13 @@ import numpy as np
 import torch
 from numpy import ndarray
 from torch import Tensor
-from torchvision import transforms
+from torchvision.transforms import functional as F_vision
 
 __all__ = [
     "image_to_tensor", "tensor_to_image",
     "preprocess_one_image",
-    "center_crop", "random_crop", "random_rotate", "random_vertically_flip", "random_horizontally_flip",
+    "center_crop_torch", "random_crop_torch", "random_rotate_torch", "random_vertically_flip_torch",
+    "random_horizontally_flip_torch",
 ]
 
 
@@ -40,7 +41,7 @@ def image_to_tensor(image: ndarray, range_norm: bool, half: bool) -> Tensor:
         tensor (Tensor): Data types supported by PyTorch
 
     Examples:
-        >>> example_image = cv2.imread("lr_image.bmp")
+        >>> example_image = cv2.imread("dst_image.bmp")
         >>> example_tensor = image_to_tensor(example_image, range_norm=True, half=False)
 
     """
@@ -49,7 +50,7 @@ def image_to_tensor(image: ndarray, range_norm: bool, half: bool) -> Tensor:
 
     # Scale the image data from [0, 1] to [-1, 1]
     if range_norm:
-        tensor = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))(tensor)
+        tensor = tensor.mul(2.0).sub(1.0)
 
     # Convert torch.float32 image data type to torch.half image data type
     if half:
@@ -70,7 +71,7 @@ def tensor_to_image(tensor: Tensor, range_norm: bool, half: bool) -> Any:
         image (np.ndarray): Data types supported by PIL or OpenCV
 
     Examples:
-        >>> example_image = cv2.imread("lr_image.bmp")
+        >>> example_image = cv2.imread("dst_image.bmp")
         >>> example_tensor = image_to_tensor(example_image, range_norm=False, half=False)
 
     """
@@ -85,128 +86,324 @@ def tensor_to_image(tensor: Tensor, range_norm: bool, half: bool) -> Any:
 
 
 def preprocess_one_image(image_path: str, range_norm: bool, half: bool, device: torch.device) -> Tensor:
+    # read an image using OpenCV
     image = cv2.imread(image_path).astype(np.float32) / 255.0
 
-    # BGR to RGB
+    # BGR image channel data to RGB image channel data
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Convert image data to pytorch format data
+    # Convert RGB image channel data to image formats supported by PyTorch
     tensor = image_to_tensor(image, range_norm, half).unsqueeze_(0)
 
-    # Transfer tensor channel image format data to CUDA device
+    # Data transfer to the specified device
     tensor = tensor.to(device, non_blocking=True)
 
     return tensor
 
 
-def center_crop(image: np.ndarray, image_size: int) -> np.ndarray:
-    """Crop small image patches from one image center area.
+def center_crop_torch(
+        src_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        dst_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        patch_size: int,
+) -> [ndarray, ndarray] or [Tensor, Tensor] or [list[ndarray], list[ndarray]] or [list[Tensor], list[Tensor]]:
+    """Intercept two images to specify the center area
 
     Args:
-        image (np.ndarray): The input image for `OpenCV.imread`.
-        image_size (int): The size of the captured image area.
+        src_images (ndarray | Tensor | list[ndarray] | list[Tensor]): Source image read by PyTorch
+        dst_images (ndarray | Tensor | list[ndarray] | list[Tensor]): Destination image read by PyTorch
+        patch_size (int): The size of the intercepted image
 
     Returns:
-        patch_image (np.ndarray): Small patch image
-
+        src_images (ndarray or Tensor or): the intercepted ground truth image
+        dst_images (ndarray or Tensor or): low-resolution intercepted images
     """
-    image_height, image_width = image.shape[:2]
+
+    if src_images.shape[2] != dst_images.shape[2]:
+        raise ValueError("The height of the source image and the destination image must be the same")
+    if src_images.shape[3] != dst_images.shape[3]:
+        raise ValueError("The width of the source image and the destination image must be the same")
+
+    if not isinstance(src_images, list):
+        src_images = [src_images]
+    if not isinstance(dst_images, list):
+        dst_images = [dst_images]
+
+    # detect input image type
+    input_type = "Tensor" if torch.is_tensor(src_images[0]) else "Numpy"
+
+    if input_type == "Tensor":
+        image_height, image_width = src_images[0].size()[-2:]
+    else:
+        image_height, image_width = src_images[0].shape[0:2]
 
     # Just need to find the top and left coordinates of the image
-    top = (image_height - image_size) // 2
-    left = (image_width - image_size) // 2
+    top = (image_height - patch_size) // 2
+    left = (image_width - patch_size) // 2
 
-    # Crop image patch
-    patch_image = image[top:top + image_size, left:left + image_size, ...]
+    # Capture low-resolution images
+    if input_type == "Tensor":
+        src_images = [src_image[
+                      :,
+                      :,
+                      top: top + patch_size,
+                      left: left + patch_size] for src_image in src_images]
+        dst_images = [dst_image[
+                     :,
+                     :,
+                     top: top + patch_size,
+                     left: left + patch_size] for dst_image in dst_images]
+    else:
+        src_images = [src_image[
+                      :,
+                      :,
+                      top: top + patch_size,
+                      left: left + patch_size] for src_image in src_images]
+        dst_images = [dst_image[
+                     top: top + patch_size,
+                     left: left + patch_size,
+                     ...] for dst_image in dst_images]
 
-    return patch_image
+    # When the input has only one image
+    if len(src_images) == 1:
+        src_images = src_images[0]
+    if len(dst_images) == 1:
+        dst_images = dst_images[0]
+
+    return src_images, dst_images
 
 
-def random_crop(image: np.ndarray, image_size: int) -> np.ndarray:
-    """Crop small image patches from one image.
+def random_crop_torch(
+        src_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        dst_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        patch_size: int,
+) -> [ndarray, ndarray] or [Tensor, Tensor] or [list[ndarray], list[ndarray]] or [list[Tensor], list[Tensor]]:
+    """Randomly intercept two images in the specified area
 
     Args:
-        image (np.ndarray): The input image for `OpenCV.imread`.
-        image_size (int): The size of the captured image area.
+        src_images (ndarray | Tensor | list[ndarray] | list[Tensor]): Source image read by PyTorch
+        dst_images (ndarray | Tensor | list[ndarray] | list[Tensor]): Destination image read by PyTorch
+        patch_size (int): The size of the intercepted image
 
     Returns:
-        patch_image (np.ndarray): Small patch image
+        src_images (ndarray or Tensor or): the intercepted ground truth image
+        dst_images (ndarray or Tensor or): low-resolution intercepted images
 
     """
-    image_height, image_width = image.shape[:2]
+
+    if src_images.shape[2] != dst_images.shape[2]:
+        raise ValueError("The height of the source image and the destination image must be the same")
+    if src_images.shape[3] != dst_images.shape[3]:
+        raise ValueError("The width of the source image and the destination image must be the same")
+
+    if not isinstance(src_images, list):
+        src_images = [src_images]
+    if not isinstance(dst_images, list):
+        dst_images = [dst_images]
+
+    # detect input image type
+    input_type = "Tensor" if torch.is_tensor(src_images[0]) else "Numpy"
+
+    if input_type == "Tensor":
+        image_height, image_width = src_images[0].size()[-2:]
+    else:
+        image_height, image_width = src_images[0].shape[0:2]
 
     # Just need to find the top and left coordinates of the image
-    top = random.randint(0, image_height - image_size)
-    left = random.randint(0, image_width - image_size)
+    top = random.randint(0, image_height - patch_size)
+    left = random.randint(0, image_width - patch_size)
 
-    # Crop image patch
-    patch_image = image[top:top + image_size, left:left + image_size, ...]
+    # Capture low-resolution images
+    if input_type == "Tensor":
+        src_images = [src_image[
+                     :,
+                     :,
+                     top: top + patch_size,
+                     left: left + patch_size] for src_image in src_images]
+        dst_images = [dst_image[
+                     :,
+                     :,
+                     top: top + patch_size,
+                     left: left + patch_size] for dst_image in dst_images]
+    else:
+        src_images = [src_image[
+                     :,
+                     :,
+                     top: top + patch_size,
+                     left: left + patch_size] for src_image in src_images]
+        dst_images = [dst_image[
+                     :,
+                     :,
+                     top: top + patch_size,
+                     left: left + patch_size] for dst_image in dst_images]
 
-    return patch_image
+    # When the input has only one image
+    if len(src_images) == 1:
+        src_images = src_images[0]
+    if len(dst_images) == 1:
+        dst_images = dst_images[0]
+
+    return src_images, dst_images
 
 
-def random_rotate(image,
-                  angles: list,
-                  center: Any = None,
-                  scale_factor: float = 1.0) -> np.ndarray:
-    """Rotate an image by a random angle
+def random_rotate_torch(
+        src_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        dst_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        angles: list,
+        center: tuple = None,
+        rotate_scale_factor: float = 1.0
+) -> [ndarray, ndarray] or [Tensor, Tensor] or [list[ndarray], list[ndarray]] or [list[Tensor], list[Tensor]]:
+    """Randomly rotate the image
 
     Args:
-        image (np.ndarray): Image read with OpenCV
-        angles (list): Rotation angle range
-        center (optional, tuple[int, int]): High resolution image selection center point. Default: ``None``
-        scale_factor (optional, float): scaling factor. Default: 1.0
+        src_images (ndarray | Tensor | list[ndarray] | list[Tensor]): ground truth images read by the PyTorch library
+        dst_images (ndarray | Tensor | list[ndarray] | list[Tensor]): low-resolution images read by the PyTorch library
+        angles (list): List of random rotation angles
+        center (optional, tuple[int, int]): Rotation center. Default: None
+        rotate_scale_factor (optional, float): Rotation scaling factor. Default: 1.0
 
     Returns:
-        rotated_image (np.ndarray): image after rotation
-
+        src_images (ndarray or Tensor or): ground truth image after rotation
+        dst_images (ndarray or Tensor or): Rotated low-resolution images
     """
-    image_height, image_width = image.shape[:2]
 
-    if center is None:
-        center = (image_width // 2, image_height // 2)
+    if src_images.shape[2] != dst_images.shape[2]:
+        raise ValueError("The height of the source image and the destination image must be the same")
+    if src_images.shape[3] != dst_images.shape[3]:
+        raise ValueError("The width of the source image and the destination image must be the same")
 
-    # Random select specific angle
+    # Randomly choose the rotation angle
     angle = random.choice(angles)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale_factor)
-    rotated_image = cv2.warpAffine(image, matrix, (image_width, image_height))
 
-    return rotated_image
+    if not isinstance(src_images, list):
+        src_images = [src_images]
+    if not isinstance(dst_images, list):
+        dst_images = [dst_images]
+
+    # detect input image type
+    input_type = "Tensor" if torch.is_tensor(src_images[0]) else "Numpy"
+
+    if input_type == "Tensor":
+        image_height, image_width = src_images[0].size()[-2:]
+    else:
+        image_height, image_width = src_images[0].shape[0:2]
+
+    # Rotate all images
+    if center is None:
+        center = [image_width // 2, image_height // 2]
+
+    matrix = cv2.getRotationMatrix2D(center, angle, rotate_scale_factor)
+
+    if input_type == "Tensor":
+        src_images = [F_vision.rotate(src_image, angle, center=center) for src_image in src_images]
+        dst_images = [F_vision.rotate(dst_image, angle, center=center) for dst_image in dst_images]
+    else:
+        src_images = [cv2.warpAffine(src_image, matrix, (image_width, image_height)) for src_image in src_images]
+        dst_images = [cv2.warpAffine(dst_image, matrix, (image_width, image_height)) for dst_image in dst_images]
+
+    # When the input has only one image
+    if len(src_images) == 1:
+        src_images = src_images[0]
+    if len(dst_images) == 1:
+        dst_images = dst_images[0]
+
+    return src_images, dst_images
 
 
-def random_horizontally_flip(image: np.ndarray, p: float = 0.5) -> np.ndarray:
-    """Flip the image upside down randomly
+def random_horizontally_flip_torch(
+        src_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        dst_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        p: float = 0.5
+) -> [ndarray, ndarray] or [Tensor, Tensor] or [list[ndarray], list[ndarray]] or [list[Tensor], list[Tensor]]:
+    """Randomly flip the image up and down
 
     Args:
-        image (np.ndarray): Image read with OpenCV
-        p (optional, float): Horizontally flip probability. Default: 0.5
+        src_images (ndarray): ground truth images read by the PyTorch library
+        dst_images (ndarray): low resolution images read by the PyTorch library
+        p (optional, float): flip probability. Default: 0.5
 
     Returns:
-        horizontally_flip_image (np.ndarray): image after horizontally flip
-
+        src_images (ndarray or Tensor or): flipped ground truth images
+        dst_images (ndarray or Tensor or): flipped low-resolution images
     """
-    if random.random() < p:
-        horizontally_flip_image = cv2.flip(image, 1)
-    else:
-        horizontally_flip_image = image
 
-    return horizontally_flip_image
+    if src_images.shape[2] != dst_images.shape[2]:
+        raise ValueError("The height of the source image and the destination image must be the same")
+    if src_images.shape[3] != dst_images.shape[3]:
+        raise ValueError("The width of the source image and the destination image must be the same")
+
+    # Randomly generate flip probability
+    flip_prob = random.random()
+
+    if not isinstance(src_images, list):
+        src_images = [src_images]
+    if not isinstance(dst_images, list):
+        dst_images = [dst_images]
+
+    # detect input image type
+    input_type = "Tensor" if torch.is_tensor(src_images[0]) else "Numpy"
+
+    if flip_prob > p:
+        if input_type == "Tensor":
+            src_images = [F_vision.hflip(src_image) for src_image in src_images]
+            dst_images = [F_vision.hflip(dst_image) for dst_image in dst_images]
+        else:
+            src_images = [cv2.flip(src_image, 1) for src_image in src_images]
+            dst_images = [cv2.flip(dst_image, 1) for dst_image in dst_images]
+
+    # When the input has only one image
+    if len(src_images) == 1:
+        src_images = src_images[0]
+    if len(dst_images) == 1:
+        dst_images = dst_images[0]
+
+    return src_images, dst_images
 
 
-def random_vertically_flip(image: np.ndarray, p: float = 0.5) -> np.ndarray:
-    """Flip an image horizontally randomly
+def random_vertically_flip_torch(
+        src_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        dst_images: ndarray | Tensor | list[ndarray] | list[Tensor],
+        p: float = 0.5
+) -> [ndarray, ndarray] or [Tensor, Tensor] or [list[ndarray], list[ndarray]] or [list[Tensor], list[Tensor]]:
+    """Randomly flip the image left and right
 
     Args:
-        image (np.ndarray): Image read with OpenCV
-        p (optional, float): Vertically flip probability. Default: 0.5
+        src_images (ndarray): ground truth images read by the PyTorch library
+        dst_images (ndarray): low resolution images read by the PyTorch library
+        p (optional, float): flip probability. Default: 0.5
 
     Returns:
-        vertically_flip_image (np.ndarray): image after vertically flip
-
+        src_images (ndarray or Tensor or): flipped ground truth images
+        dst_images (ndarray or Tensor or): flipped low-resolution images
     """
-    if random.random() < p:
-        vertically_flip_image = cv2.flip(image, 0)
-    else:
-        vertically_flip_image = image
 
-    return vertically_flip_image
+    if src_images.shape[2] != dst_images.shape[2]:
+        raise ValueError("The height of the source image and the destination image must be the same")
+    if src_images.shape[3] != dst_images.shape[3]:
+        raise ValueError("The width of the source image and the destination image must be the same")
+
+    # Randomly generate flip probability
+    flip_prob = random.random()
+
+    if not isinstance(src_images, list):
+        src_images = [src_images]
+    if not isinstance(dst_images, list):
+        dst_images = [dst_images]
+
+    # detect input image type
+    input_type = "Tensor" if torch.is_tensor(src_images[0]) else "Numpy"
+
+    if flip_prob > p:
+        if input_type == "Tensor":
+            src_images = [F_vision.vflip(src_image) for src_image in src_images]
+            dst_images = [F_vision.vflip(dst_image) for dst_image in dst_images]
+        else:
+            src_images = [cv2.flip(src_image, 0) for src_image in src_images]
+            dst_images = [cv2.flip(dst_image, 0) for dst_image in dst_images]
+
+    # When the input has only one image
+    if len(src_images) == 1:
+        src_images = src_images[0]
+    if len(dst_images) == 1:
+        dst_images = dst_images[0]
+
+    return src_images, dst_images

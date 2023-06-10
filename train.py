@@ -11,13 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import argparse
 import itertools
 import os
 import random
 import time
+from typing import Any
 
 import numpy as np
 import torch
+import yaml
 from torch import nn, optim
 from torch.backends import cudnn
 from torch.cuda import amp
@@ -27,171 +30,158 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import save_image
 
-import config
 import model
 from dataset import CUDAPrefetcher, ImageDataset
-from utils import load_pretrained_state_dict, load_resume_state_dict, make_directory, save_state_dict, DecayLR, \
+from imgproc import random_crop_torch, random_rotate_torch, random_vertically_flip_torch, random_horizontally_flip_torch
+from utils import load_pretrained_state_dict, load_resume_state_dict, make_directory, save_checkpoint, DecayLR, \
     ReplayBuffer, Summary, AverageMeter, ProgressMeter
 
 
 def main():
-    device = torch.device(config.device)
+    # Read parameters from configuration file
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_path",
+                        type=str,
+                        default="./configs/train/CYCLEGAN.yaml",
+                        help="Path to train config file.")
+    args = parser.parse_args()
+
+    with open(args.config_path, "r") as f:
+        config = yaml.full_load(f)
+
     # Fixed random number seed
-    random.seed(config.seed)
-    np.random.seed(config.seed)
-    torch.manual_seed(config.seed)
-    torch.cuda.manual_seed_all(config.seed)
+    random.seed(config["SEED"])
+    np.random.seed(config["SEED"])
+    torch.manual_seed(config["SEED"])
+    torch.cuda.manual_seed_all(config["SEED"])
 
     # Because the size of the input image is fixed, the fixed CUDNN convolution method can greatly increase the running speed
     cudnn.benchmark = True
 
-    # Initialize the gradient scaler
+    # Initialize the mixed precision method
     scaler = amp.GradScaler()
 
-    # Initialize the number of training epochs
+    # Default to start training from scratch
     start_epoch = 0
 
-    train_prefetcher = load_dataset(config.src_image_path,
-                                    config.dst_image_path,
-                                    config.unpaired,
-                                    config.resized_image_size,
-                                    config.batch_size,
-                                    config.num_workers,
-                                    device)
-    d_A_model, d_B_model, g_A2B_model, g_B2A_model, ema_g_A2B_model, ema_g_B2A_model = build_model(
-        config.d_model_arch_name,
-        config.g_model_arch_name,
-        config.model_ema_decay,
-        device)
+    # Define the running device number
+    device = torch.device("cuda", config["DEVICE_ID"])
 
-    cycle_criterion, identity_criterion, adversarial_criterion = define_loss(device)
-    d_A_optimizer, d_B_optimizer, g_optimizer = define_optimizer(d_A_model,
-                                                                 d_B_model,
-                                                                 g_A2B_model,
+    train_data_prefetcher = load_datasets(config, device)
+    g_A2B_model, g_B2A_model, ema_g_A2B_model, ema_g_B2A_model, d_A_model, d_B_model = build_model(config, device)
+    identity_criterion, adversarial_criterion, cycle_criterion = define_loss(config, device)
+    g_optimizer, d_A_optimizer, d_B_optimizer = define_optimizer(g_A2B_model,
                                                                  g_B2A_model,
-                                                                 config.optim_lr,
-                                                                 config.optim_betas,
-                                                                 config.optim_eps,
-                                                                 config.optim_weight_decay)
-    d_A_scheduler, d_B_scheduler, g_scheduler = define_scheduler(d_A_optimizer,
+                                                                 d_A_model,
+                                                                 d_B_model,
+                                                                 config)
+    g_scheduler, d_A_scheduler, d_B_scheduler = define_scheduler(g_optimizer,
+                                                                 d_A_optimizer,
                                                                  d_B_optimizer,
-                                                                 g_optimizer,
-                                                                 config.decay_epochs,
-                                                                 config.epochs)
+                                                                 config)
 
     # Load the pre-trained model weights and fine-tune the model
     print("Check whether to load pretrained model weights...")
-    if config.load_pretrained:
-        d_A_model = load_pretrained_state_dict(d_A_model, config.pretrained_d_A_model_weights_path)
-        d_B_model = load_pretrained_state_dict(d_B_model, config.pretrained_d_B_model_weights_path)
-        g_A2B_model = load_pretrained_state_dict(g_A2B_model, config.pretrained_g_A2B_model_weights_path)
-        g_B2A_model = load_pretrained_state_dict(g_B2A_model, config.pretrained_g_B2A_model_weights_path)
+    if config["TRAIN"]["CHECKPOINT"]["LOAD_PRETRAINED"]:
+        g_A2B_model = load_pretrained_state_dict(g_A2B_model,
+                                                 config["MODEL"]["G"]["COMPILED"],
+                                                 config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_A2B_MODEL_WEIGHTS_PATH"])
+        g_B2A_model = load_pretrained_state_dict(g_B2A_model,
+                                                 config["MODEL"]["G"]["COMPILED"],
+                                                 config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_B2A_MODEL_WEIGHTS_PATH"])
+        d_A_model = load_pretrained_state_dict(d_A_model,
+                                               config["MODEL"]["D"]["COMPILED"],
+                                               config["TRAIN"]["CHECKPOINT"]["PRETRAINED_D_A_MODEL_WEIGHTS_PATH"])
+        d_B_model = load_pretrained_state_dict(d_B_model,
+                                               config["MODEL"]["D"]["COMPILED"],
+                                               config["TRAIN"]["CHECKPOINT"]["PRETRAINED_D_B_MODEL_WEIGHTS_PATH"])
         print(f"Loaded pretrained model weights successfully.")
     else:
         print("Pretrained model weights not found.")
 
     # Load the last training interruption node
     print("Check whether the resume model is restored...")
-    if config.load_resume:
-        d_A_model, _, start_epoch, d_A_optimizer, d_A_scheduler = load_resume_state_dict(
-            d_A_model,
-            config.resume_d_A_model_weights_path,
-            None,
-            d_A_optimizer,
-            d_A_scheduler,
-        )
-        d_B_model, _, start_epoch, d_B_optimizer, d_B_scheduler = load_resume_state_dict(
-            d_B_model,
-            config.resume_d_B_model_weights_path,
-            None,
-            d_B_optimizer,
-            d_B_scheduler,
-        )
+    if config["TRAIN"]["CHECKPOINT"]["LOAD_RESUME"]:
         g_A2B_model, ema_g_A2B_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
             g_A2B_model,
-            config.resume_g_A2B_model_weights_path,
             ema_g_A2B_model,
             g_optimizer,
             g_scheduler,
+            config["MODEL"]["G"]["COMPILED"],
+            config["TRAIN"]["CHECKPOINT"]["RESUME_G_A2B_MODEL_WEIGHTS_PATH"],
         )
         g_B2A_model, ema_g_B2A_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
             g_B2A_model,
-            config.resume_g_B2A_model_weights_path,
             ema_g_B2A_model,
             g_optimizer,
             g_scheduler,
+            config["MODEL"]["G"]["COMPILED"],
+            config["TRAIN"]["CHECKPOINT"]["RESUME_G_B2A_MODEL_WEIGHTS_PATH"],
+        )
+        d_A_model, _, start_epoch, d_A_optimizer, d_A_scheduler = load_resume_state_dict(
+            d_A_model,
+            None,
+            d_A_optimizer,
+            d_A_scheduler,
+            config["MODEL"]["D"]["COMPILED"],
+            config["TRAIN"]["CHECKPOINT"]["RESUME_D_A_MODEL_WEIGHTS_PATH"],
+        )
+        d_B_model, _, start_epoch, d_B_optimizer, d_B_scheduler = load_resume_state_dict(
+            d_B_model,
+            None,
+            d_B_optimizer,
+            d_B_scheduler,
+            config["MODEL"]["D"]["COMPILED"],
+            config["TRAIN"]["CHECKPOINT"]["RESUME_D_B_MODEL_WEIGHTS_PATH"],
         )
         print(f"Loaded resume model weights successfully.")
     else:
         print("Resume training model not found. Start training from scratch.")
 
     # Create a experiment results
-    samples_dir = os.path.join("samples", config.exp_name)
-    results_dir = os.path.join("results", config.exp_name)
+    samples_dir = os.path.join("samples", config["EXP_NAME"])
+    results_dir = os.path.join("results", config["EXP_NAME"])
     make_directory(samples_dir)
     make_directory(results_dir)
     make_directory(os.path.join(samples_dir, "A"))
     make_directory(os.path.join(samples_dir, "B"))
 
     # Create training process log file
-    writer = SummaryWriter(os.path.join("samples", "logs", config.exp_name))
+    writer = SummaryWriter(os.path.join("samples", "logs", config["EXP_NAME"]))
 
     fake_A_buffer = ReplayBuffer()
     fake_B_buffer = ReplayBuffer()
 
-    for epoch in range(start_epoch, config.epochs):
-        train(d_A_model,
-              d_B_model,
-              g_A2B_model,
+    for epoch in range(start_epoch, config["TRAIN"]["HYP"]["EPOCHS"]):
+        train(g_A2B_model,
               g_B2A_model,
               ema_g_A2B_model,
               ema_g_B2A_model,
-              train_prefetcher,
+              d_A_model,
+              d_B_model,
+              train_data_prefetcher,
               identity_criterion,
               adversarial_criterion,
               cycle_criterion,
+              g_optimizer,
               d_A_optimizer,
               d_B_optimizer,
-              g_optimizer,
               fake_A_buffer,
               fake_B_buffer,
               epoch,
               scaler,
               writer,
               device,
-              config.print_frequency,
-              samples_dir)
+              config)
         print("\n")
 
         # Update LR
+        g_scheduler.step()
         d_A_scheduler.step()
         d_B_scheduler.step()
-        g_scheduler.step()
 
-        is_last = (epoch + 1) == config.epochs
-        save_state_dict({"epoch": epoch + 1,
-                         "state_dict": d_A_model.state_dict(),
-                         "optimizer": d_A_optimizer.state_dict(),
-                         "scheduler": d_A_scheduler.state_dict()},
-                        f"d_A_epoch_{epoch + 1}.pth.tar",
-                        samples_dir,
-                        results_dir,
-                        "d_A_best.pth.tar",
-                        "d_A_last.pth.tar",
-                        True,
-                        is_last)
-        save_state_dict({"epoch": epoch + 1,
-                         "state_dict": d_B_model.state_dict(),
-                         "optimizer": d_B_optimizer.state_dict(),
-                         "scheduler": d_B_scheduler.state_dict()},
-                        f"d_B_epoch_{epoch + 1}.pth.tar",
-                        samples_dir,
-                        results_dir,
-                        "d_B_best.pth.tar",
-                        "d_B_last.pth.tar",
-                        True,
-                        is_last)
-        save_state_dict({"epoch": epoch + 1,
+        is_last = (epoch + 1) == config["TRAIN"]["HYP"]["EPOCHS"]
+        save_checkpoint({"epoch": epoch + 1,
                          "state_dict": g_A2B_model.state_dict(),
                          "ema_state_dict": ema_g_A2B_model.state_dict(),
                          "optimizer": g_optimizer.state_dict(),
@@ -203,7 +193,7 @@ def main():
                         "g_A2B_last.pth.tar",
                         True,
                         is_last)
-        save_state_dict({"epoch": epoch + 1,
+        save_checkpoint({"epoch": epoch + 1,
                          "state_dict": g_B2A_model.state_dict(),
                          "ema_state_dict": ema_g_B2A_model.state_dict(),
                          "optimizer": g_optimizer.state_dict(),
@@ -215,64 +205,111 @@ def main():
                         "g_B2A_last.pth.tar",
                         True,
                         is_last)
+        save_checkpoint({"epoch": epoch + 1,
+                         "state_dict": d_A_model.state_dict(),
+                         "optimizer": d_A_optimizer.state_dict(),
+                         "scheduler": d_A_scheduler.state_dict()},
+                        f"d_A_epoch_{epoch + 1}.pth.tar",
+                        samples_dir,
+                        results_dir,
+                        "d_A_best.pth.tar",
+                        "d_A_last.pth.tar",
+                        True,
+                        is_last)
+        save_checkpoint({"epoch": epoch + 1,
+                         "state_dict": d_B_model.state_dict(),
+                         "optimizer": d_B_optimizer.state_dict(),
+                         "scheduler": d_B_scheduler.state_dict()},
+                        f"d_B_epoch_{epoch + 1}.pth.tar",
+                        samples_dir,
+                        results_dir,
+                        "d_B_best.pth.tar",
+                        "d_B_last.pth.tar",
+                        True,
+                        is_last)
 
 
-def load_dataset(
-        src_image_path: str,
-        dst_image_path: str,
-        unpaired: bool,
-        resized_image_size: int,
-        batch_size: int,
-        num_workers: int,
-        device: torch.device) -> [CUDAPrefetcher, CUDAPrefetcher]:
-    # Load train, test and valid datasets
-    train_datasets = ImageDataset(src_image_path, dst_image_path, unpaired, resized_image_size)
+def load_datasets(
+        config: Any,
+        device: torch.device,
+) -> CUDAPrefetcher:
+    # Load dataset
+    train_datasets = ImageDataset(
+        config["TRAIN"]["DATASET"]["SRC_IMAGE_PATH"],
+        config["TRAIN"]["DATASET"]["DST_IMAGE_PATH"],
+        config["TRAIN"]["DATASET"]["UNPAIRED"],
+        config["TRAIN"]["DATASET"]["RESIZED_IMAGE_SIZE"],
+    )
     # Generator all dataloader
     train_dataloader = DataLoader(train_datasets,
-                                  batch_size=batch_size,
-                                  shuffle=True,
-                                  num_workers=num_workers,
-                                  pin_memory=True,
+                                  batch_size=config["TRAIN"]["HYP"]["IMGS_PER_BATCH"],
+                                  shuffle=config["TRAIN"]["HYP"]["SHUFFLE"],
+                                  num_workers=config["TRAIN"]["HYP"]["NUM_WORKERS"],
+                                  pin_memory=config["TRAIN"]["HYP"]["PIN_MEMORY"],
                                   drop_last=True,
-                                  persistent_workers=True)
+                                  persistent_workers=config["TRAIN"]["HYP"]["PERSISTENT_WORKERS"])
 
     # Place all data on the preprocessing data loader
-    train_prefetcher = CUDAPrefetcher(train_dataloader, device)
+    train_data_prefetcher = CUDAPrefetcher(train_dataloader, device)
 
-    return train_prefetcher
+    return train_data_prefetcher
 
 
 def build_model(
-        d_model_arch_name: str,
-        g_model_arch_name: str,
-        model_ema_decay: float,
+        config: Any,
         device: torch.device,
 ) -> [nn.Module, nn.Module, nn.Module, nn.Module, nn.Module, nn.Module]:
-    d_src_model = model.__dict__[d_model_arch_name]()
-    d_dst_model = model.__dict__[d_model_arch_name]()
-    g_src_to_dst_model = model.__dict__[g_model_arch_name]()
-    g_dst_to_src_model = model.__dict__[g_model_arch_name]()
-
+    g_A2B_model = model.__dict__[config["MODEL"]["G"]["NAME"]](in_channels=config["MODEL"]["G"]["IN_CHANNELS"],
+                                                               out_channels=config["MODEL"]["G"]["OUT_CHANNELS"],
+                                                               channels=config["MODEL"]["G"]["CHANNELS"])
+    g_B2A_model = model.__dict__[config["MODEL"]["G"]["NAME"]](in_channels=config["MODEL"]["G"]["IN_CHANNELS"],
+                                                               out_channels=config["MODEL"]["G"]["OUT_CHANNELS"],
+                                                               channels=config["MODEL"]["G"]["CHANNELS"])
+    d_A_model = model.__dict__[config["MODEL"]["D"]["NAME"]](in_channels=config["MODEL"]["D"]["IN_CHANNELS"],
+                                                             out_channels=config["MODEL"]["D"]["OUT_CHANNELS"],
+                                                             channels=config["MODEL"]["D"]["CHANNELS"],
+                                                             image_size=config["MODEL"]["D"]["IMAGE_SIZE"])
+    d_B_model = model.__dict__[config["MODEL"]["D"]["NAME"]](in_channels=config["MODEL"]["D"]["IN_CHANNELS"],
+                                                             out_channels=config["MODEL"]["D"]["OUT_CHANNELS"],
+                                                             channels=config["MODEL"]["D"]["CHANNELS"],
+                                                             image_size=config["MODEL"]["D"]["IMAGE_SIZE"])
     # Create an Exponential Moving Average Model
-    ema_avg_fn = lambda averaged_model_parameter, model_parameter, num_averaged: \
-        (1 - model_ema_decay) * averaged_model_parameter + model_ema_decay * model_parameter
-    ema_g_src_to_dst_model = AveragedModel(g_src_to_dst_model, device=device, avg_fn=ema_avg_fn)
-    ema_g_dst_to_src_model = AveragedModel(g_dst_to_src_model, device=device, avg_fn=ema_avg_fn)
+    if config["MODEL"]["EMA"]["ENABLE"]:
+        # Generate an exponential average model based on a generator to stabilize model training
+        ema_decay = config["MODEL"]["EMA"]["DECAY"]
+        ema_avg_fn = lambda averaged_model_parameter, model_parameter, num_averaged: \
+            (1 - ema_decay) * averaged_model_parameter + ema_decay * model_parameter
+        ema_g_A2B_model = AveragedModel(g_A2B_model, device=device, avg_fn=ema_avg_fn)
+        ema_g_B2A_model = AveragedModel(g_B2A_model, device=device, avg_fn=ema_avg_fn)
+    else:
+        ema_g_A2B_model = None
+        ema_g_B2A_model = None
 
-    d_src_model = d_src_model.to(device)
-    d_dst_model = d_dst_model.to(device)
-    g_src_to_dst_model = g_src_to_dst_model.to(device)
-    g_dst_to_src_model = g_dst_to_src_model.to(device)
-    ema_g_src_to_dst_model = ema_g_src_to_dst_model.to(device)
-    ema_g_dst_to_src_model = ema_g_dst_to_src_model.to(device)
+    g_A2B_model = g_A2B_model.to(device)
+    g_B2A_model = g_B2A_model.to(device)
+    ema_g_A2B_model = ema_g_A2B_model.to(device)
+    ema_g_B2A_model = ema_g_B2A_model.to(device)
+    d_A_model = d_A_model.to(device)
+    d_B_model = d_B_model.to(device)
 
-    return d_src_model, d_dst_model, g_src_to_dst_model, g_dst_to_src_model, ema_g_src_to_dst_model, ema_g_dst_to_src_model
+    return g_A2B_model, g_B2A_model, ema_g_A2B_model, ema_g_B2A_model, d_A_model, d_B_model
 
 
-def define_loss(device) -> [nn.L1Loss, nn.MSELoss, nn.L1Loss]:
-    identity_criterion = nn.L1Loss()
-    adversarial_criterion = nn.MSELoss()
-    cycle_criterion = nn.L1Loss()
+def define_loss(config: Any, device: torch.device) -> [nn.L1Loss, nn.MSELoss, nn.L1Loss]:
+    if config["TRAIN"]["LOSSES"]["IDENTITY_LOSS"]["NAME"] == "L1Loss":
+        identity_criterion = nn.L1Loss()
+    else:
+        raise NotImplementedError(f"Loss {config['TRAIN']['LOSSES']['IDENTITY_LOSS']['NAME']} is not implemented.")
+
+    if config["TRAIN"]["LOSSES"]["ADVERSARIAL_LOSS"]["NAME"] == "MSELoss":
+        adversarial_criterion = nn.MSELoss()
+    else:
+        raise NotImplementedError(f"Loss {config['TRAIN']['LOSSES']['ADVERSARIAL_LOSS']['NAME']} is not implemented.")
+
+    if config["TRAIN"]["LOSSES"]["CYCLE_LOSS"]["NAME"] == "L1Loss":
+        cycle_criterion = nn.L1Loss()
+    else:
+        raise NotImplementedError(f"Loss {config['TRAIN']['LOSSES']['CYCLE_LOSS']['NAME']} is not implemented.")
 
     identity_criterion = identity_criterion.to(device)
     adversarial_criterion = adversarial_criterion.to(device)
@@ -282,74 +319,75 @@ def define_loss(device) -> [nn.L1Loss, nn.MSELoss, nn.L1Loss]:
 
 
 def define_optimizer(
-        d_src_model: nn.Module,
-        d_dst_model: nn.Module,
-        g_src_to_dst_model: nn.Module,
-        g_dst_to_src_model: nn.Module,
-        optim_lr: float,
-        optim_betas: tuple,
-        optim_eps: float,
-        optim_weight_decay: float,
+        g_A2B_model: nn.Module,
+        g_B2A_model: nn.Module,
+        d_A_model: nn.Module,
+        d_B_model: nn.Module,
+        config: Any,
 ) -> [optim.Adam, optim.Adam, optim.Adam]:
-    d_src_optimizer = torch.optim.Adam(d_src_model.parameters(),
-                                       optim_lr,
-                                       optim_betas,
-                                       optim_eps,
-                                       optim_weight_decay)
-    d_dst_optimizer = torch.optim.Adam(d_dst_model.parameters(),
-                                       optim_lr,
-                                       optim_betas,
-                                       optim_eps,
-                                       optim_weight_decay)
-    g_optimizer = torch.optim.Adam(itertools.chain(g_src_to_dst_model.parameters(), g_dst_to_src_model.parameters()),
-                                   optim_lr,
-                                   optim_betas,
-                                   optim_eps,
-                                   optim_weight_decay)
+    if config["TRAIN"]["OPTIM"]["NAME"] == "Adam":
+        g_optimizer = optim.Adam(itertools.chain(g_A2B_model.parameters(), g_B2A_model.parameters()),
+                                 config["TRAIN"]["OPTIM"]["LR"],
+                                 config["TRAIN"]["OPTIM"]["BETAS"],
+                                 config["TRAIN"]["OPTIM"]["EPS"],
+                                 config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
+        d_A_optimizer = optim.Adam(d_A_model.parameters(),
+                                   config["TRAIN"]["OPTIM"]["LR"],
+                                   config["TRAIN"]["OPTIM"]["BETAS"],
+                                   config["TRAIN"]["OPTIM"]["EPS"],
+                                   config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
+        d_B_optimizer = optim.Adam(d_B_model.parameters(),
+                                   config["TRAIN"]["OPTIM"]["LR"],
+                                   config["TRAIN"]["OPTIM"]["BETAS"],
+                                   config["TRAIN"]["OPTIM"]["EPS"],
+                                   config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
+    else:
+        raise NotImplementedError(f"Optimizer {config['TRAIN']['OPTIM']['NAME']} is not implemented.")
 
-    return d_src_optimizer, d_dst_optimizer, g_optimizer
+    return g_optimizer, d_A_optimizer, d_B_optimizer
 
 
 def define_scheduler(
-        d_src_optimizer: optim.Adam,
-        d_dst_optimizer: optim.Adam,
         g_optimizer: optim.Adam,
-        decay_epoch: int,
-        epochs: int,
-) -> [lr_scheduler.LambdaLR, lr_scheduler.LambdaLR, lr_scheduler.LambdaLR, ]:
-    lr_lambda = DecayLR(epochs, 0, decay_epoch).step
-    d_src_scheduler = lr_scheduler.LambdaLR(d_src_optimizer, lr_lambda)
-    d_dst_scheduler = lr_scheduler.LambdaLR(d_dst_optimizer, lr_lambda)
-    g_scheduler = lr_scheduler.LambdaLR(g_optimizer, lr_lambda)
+        d_A_optimizer: optim.Adam,
+        d_B_optimizer: optim.Adam,
+        config: Any,
+) -> [lr_scheduler.LambdaLR, lr_scheduler.LambdaLR, lr_scheduler.LambdaLR]:
+    if config["TRAIN"]["LR_SCHEDULER"]["NAME"] == "LambdaLR":
+        lr_lambda = DecayLR(config["TRAIN"]["HYP"]["EPOCHS"], 0, config["TRAIN"]["LR_SCHEDULER"]["DECAY_EPOCHS"]).step
+        d_A_scheduler = lr_scheduler.LambdaLR(d_A_optimizer, lr_lambda)
+        d_B_scheduler = lr_scheduler.LambdaLR(d_B_optimizer, lr_lambda)
+        g_scheduler = lr_scheduler.LambdaLR(g_optimizer, lr_lambda)
+    else:
+        raise NotImplementedError(f"Scheduler {config['TRAIN']['LR_SCHEDULER']['NAME']} is not implemented.")
 
-    return d_src_scheduler, d_dst_scheduler, g_scheduler
+    return g_scheduler, d_A_scheduler, d_B_scheduler
 
 
 def train(
-        d_A_model: nn.Module,
-        d_B_model: nn.Module,
         g_A2B_model: nn.Module,
         g_B2A_model: nn.Module,
         ema_g_A2B_model: nn.Module,
         ema_g_B2A_model: nn.Module,
-        train_prefetcher: CUDAPrefetcher,
+        d_A_model: nn.Module,
+        d_B_model: nn.Module,
+        train_data_prefetcher: CUDAPrefetcher,
         identity_criterion: nn.L1Loss,
         adversarial_criterion: nn.MSELoss,
         cycle_criterion: nn.L1Loss,
+        g_optimizer: optim.Adam,
         d_A_optimizer: optim.Adam,
         d_B_optimizer: optim.Adam,
-        g_optimizer: optim.Adam,
         fake_A_buffer: ReplayBuffer,
         fake_B_buffer: ReplayBuffer,
         epoch: int,
         scaler: amp.GradScaler,
         writer: SummaryWriter,
         device: torch.device,
-        print_frequency: int,
-        samples_dir: str,
+        config: Any,
 ) -> None:
     # Calculate how many batches of data are in each Epoch
-    batches = len(train_prefetcher)
+    batches = len(train_data_prefetcher)
     # Print information of progress bar during training
     batch_time = AverageMeter("Time", ":6.3f", Summary.NONE)
     data_time = AverageMeter("Data", ":6.3f", Summary.NONE)
@@ -366,12 +404,16 @@ def train(
     g_A2B_model.train()
     g_B2A_model.train()
 
+    identity_weight = torch.Tensor(config["TRAIN"]["LOSSES"]["IDENTITY_LOSS"]["WEIGHT"]).to(device)
+    adversarial_weight = torch.Tensor(config["TRAIN"]["LOSSES"]["ADVERSARIAL_LOSS"]["WEIGHT"]).to(device)
+    cycle_weight = torch.Tensor(config["TRAIN"]["LOSSES"]["CYCLE_LOSS"]["WEIGHT"]).to(device)
+
     # Initialize the number of data batches to print logs on the terminal
     batch_index = 0
 
     # Initialize the data loader and load the first batch of data
-    train_prefetcher.reset()
-    batch_data = train_prefetcher.next()
+    train_data_prefetcher.reset()
+    batch_data = train_data_prefetcher.next()
 
     # Get the initialization training time
     end = time.time()
@@ -383,13 +425,18 @@ def train(
         # Transfer in-memory data to CUDA devices to speed up training
         real_image_A = batch_data["src"].to(device, non_blocking=True)
         real_image_B = batch_data["dst"].to(device, non_blocking=True)
-        identity_weight = torch.Tensor(config.identity_weight).to(device)
-        adversarial_weight = torch.Tensor(config.adversarial_weight).to(device)
-        cycle_weight = torch.Tensor(config.cycle_weight).to(device)
+
+        # image data augmentation
+        real_image_A, real_image_B = random_crop_torch(real_image_A,
+                                                       real_image_B,
+                                                       config["TRAIN"]["DATASET"]["RESIZED_IMAGE_SIZE"])
+        real_image_A, real_image_B = random_rotate_torch(real_image_A, real_image_B, [0, 90, 180, 270])
+        real_image_A, real_image_B = random_vertically_flip_torch(real_image_A, real_image_B)
+        real_image_A, real_image_B = random_horizontally_flip_torch(real_image_A, real_image_B)
 
         batch_size = real_image_A.size(0)
-        real_label = torch.full((batch_size, 3), 1, device=device, dtype=torch.float32)
-        fake_label = torch.full((batch_size, 3), 0, device=device, dtype=torch.float32)
+        real_label = torch.full((batch_size, 1), 1, device=device, dtype=torch.float32)
+        fake_label = torch.full((batch_size, 1), 0, device=device, dtype=torch.float32)
 
         ##############################################
         # (1) Update G network: Generators A2B and B2A
@@ -501,8 +548,8 @@ def train(
         end = time.time()
 
         # Write the data during training to the training log file
-        if batch_index % print_frequency == 0:
-            total_batch_index = batch_index + epoch * batches + 1
+        if batch_index % config["TRAIN"]["PRINT_FREQ"] == 0:
+            total_batch_index = batch_index + epoch * batches
 
             # Record loss during training and output to file
             writer.add_scalar("Train/D(A)_Loss", loss_d_A.item(), total_batch_index)
@@ -515,7 +562,7 @@ def train(
             progress.display(batch_index + 1)
 
         # Preload the next batch of data
-        batch_data = train_prefetcher.next()
+        batch_data = train_data_prefetcher.next()
 
         # Add 1 to the number of data batches to ensure that the terminal prints data normally
         batch_index += 1
@@ -523,10 +570,10 @@ def train(
         # Save training image
         if batch_index == batches:
             save_image(real_image_A,
-                       f"{samples_dir}/A/real_image_A_epoch_{epoch:04d}.jpg",
+                       f"./samples/{config['EXP_NAME']}/A/real_image_A_epoch_{epoch:04d}.jpg",
                        normalize=True)
             save_image(real_image_B,
-                       f"{samples_dir}/B/real_image_B_epoch_{epoch:04d}.jpg",
+                       f"./samples/{config['EXP_NAME']}/B/real_image_B_epoch_{epoch:04d}.jpg",
                        normalize=True)
 
             # Normalize [-1, 1] to [0, 1]
@@ -534,10 +581,10 @@ def train(
             fake_image_B = 0.5 * (g_A2B_model(real_image_A).data + 1.0)
 
             save_image(fake_image_A.detach(),
-                       f"{samples_dir}/A/fake_image_A_epoch_{epoch:04d}.jpg",
+                       f"./samples/{config['EXP_NAME']}/A/fake_image_A_epoch_{epoch:04d}.jpg",
                        normalize=True)
             save_image(fake_image_B.detach(),
-                       f"{samples_dir}/B/fake_image_B_epoch_{epoch:04d}.jpg",
+                       f"./samples/{config['EXP_NAME']}/B/fake_image_B_epoch_{epoch:04d}.jpg",
                        normalize=True)
 
 
