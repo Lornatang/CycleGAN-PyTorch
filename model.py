@@ -28,11 +28,8 @@ class PathDiscriminator(nn.Module):
             in_channels: int,
             out_channels: int,
             channels: int,
-            image_size: int,
     ) -> None:
         super(PathDiscriminator, self).__init__()
-        self.image_size = image_size
-
         self.main = nn.Sequential(
             nn.Conv2d(in_channels, channels, (4, 4), (2, 2), (1, 1)),
             nn.LeakyReLU(0.2, True),
@@ -53,12 +50,7 @@ class PathDiscriminator(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        if x.shape[2] < self.image_size or x.shape[3] < self.image_size:
-            x = F_vision.resize(x, [self.image_size, self.image_size])
-        x = F_vision.center_crop(x, [self.image_size, self.image_size])
         x = self.main(x)
-        x = F_torch.avg_pool2d(x, x.size()[2:])
-        x = torch.flatten(x, 1)
 
         return x
 

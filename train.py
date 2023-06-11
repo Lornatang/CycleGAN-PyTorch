@@ -68,27 +68,26 @@ def main():
     device = torch.device("cuda", config["DEVICE_ID"])
 
     train_data_prefetcher = load_datasets(config, device)
-    g_A2B_model, g_B2A_model, ema_g_A2B_model, ema_g_B2A_model, d_A_model, d_B_model = build_model(config, device)
+    g_A_model, g_B_model, ema_g_A_model, ema_g_B_model, d_A_model, d_B_model = build_model(config, device)
     identity_criterion, adversarial_criterion, cycle_criterion = define_loss(config, device)
-    g_optimizer, d_A_optimizer, d_B_optimizer = define_optimizer(g_A2B_model,
-                                                                 g_B2A_model,
-                                                                 d_A_model,
-                                                                 d_B_model,
-                                                                 config)
-    g_scheduler, d_A_scheduler, d_B_scheduler = define_scheduler(g_optimizer,
-                                                                 d_A_optimizer,
-                                                                 d_B_optimizer,
-                                                                 config)
+    g_optimizer, d_optimizer = define_optimizer(g_A_model,
+                                                g_B_model,
+                                                d_A_model,
+                                                d_B_model,
+                                                config)
+    g_scheduler, d_scheduler = define_scheduler(g_optimizer,
+                                                d_optimizer,
+                                                config)
 
     # Load the pre-trained model weights and fine-tune the model
     print("Check whether to load pretrained model weights...")
     if config["TRAIN"]["CHECKPOINT"]["LOAD_PRETRAINED"]:
-        g_A2B_model = load_pretrained_state_dict(g_A2B_model,
-                                                 False,
-                                                 config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_A2B_MODEL_WEIGHTS_PATH"])
-        g_B2A_model = load_pretrained_state_dict(g_B2A_model,
-                                                 False,
-                                                 config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_B2A_MODEL_WEIGHTS_PATH"])
+        g_A_model = load_pretrained_state_dict(g_A_model,
+                                               False,
+                                               config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_A_MODEL_WEIGHTS_PATH"])
+        g_B_model = load_pretrained_state_dict(g_B_model,
+                                               False,
+                                               config["TRAIN"]["CHECKPOINT"]["PRETRAINED_G_B_MODEL_WEIGHTS_PATH"])
         d_A_model = load_pretrained_state_dict(d_A_model,
                                                False,
                                                config["TRAIN"]["CHECKPOINT"]["PRETRAINED_D_A_MODEL_WEIGHTS_PATH"])
@@ -102,35 +101,35 @@ def main():
     # Load the last training interruption node
     print("Check whether the resume model is restored...")
     if config["TRAIN"]["CHECKPOINT"]["LOAD_RESUME"]:
-        g_A2B_model, ema_g_A2B_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
-            g_A2B_model,
-            ema_g_A2B_model,
+        g_A_model, ema_g_A_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
+            g_A_model,
+            ema_g_A_model,
             g_optimizer,
             g_scheduler,
             config["MODEL"]["G"]["COMPILED"],
-            config["TRAIN"]["CHECKPOINT"]["RESUME_G_A2B_MODEL_WEIGHTS_PATH"],
+            config["TRAIN"]["CHECKPOINT"]["RESUME_G_A_MODEL_WEIGHTS_PATH"],
         )
-        g_B2A_model, ema_g_B2A_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
-            g_B2A_model,
-            ema_g_B2A_model,
+        g_B_model, ema_g_B_model, start_epoch, g_optimizer, g_scheduler = load_resume_state_dict(
+            g_B_model,
+            ema_g_B_model,
             g_optimizer,
             g_scheduler,
             config["MODEL"]["G"]["COMPILED"],
-            config["TRAIN"]["CHECKPOINT"]["RESUME_G_B2A_MODEL_WEIGHTS_PATH"],
+            config["TRAIN"]["CHECKPOINT"]["RESUME_G_B_MODEL_WEIGHTS_PATH"],
         )
         d_A_model, _, start_epoch, d_A_optimizer, d_A_scheduler = load_resume_state_dict(
             d_A_model,
             None,
-            d_A_optimizer,
-            d_A_scheduler,
+            d_optimizer,
+            d_scheduler,
             config["MODEL"]["D"]["COMPILED"],
             config["TRAIN"]["CHECKPOINT"]["RESUME_D_A_MODEL_WEIGHTS_PATH"],
         )
         d_B_model, _, start_epoch, d_B_optimizer, d_B_scheduler = load_resume_state_dict(
             d_B_model,
             None,
-            d_B_optimizer,
-            d_B_scheduler,
+            d_optimizer,
+            d_scheduler,
             config["MODEL"]["D"]["COMPILED"],
             config["TRAIN"]["CHECKPOINT"]["RESUME_D_B_MODEL_WEIGHTS_PATH"],
         )
@@ -153,10 +152,10 @@ def main():
     fake_B_buffer = ReplayBuffer()
 
     for epoch in range(start_epoch, config["TRAIN"]["HYP"]["EPOCHS"]):
-        train(g_A2B_model,
-              g_B2A_model,
-              ema_g_A2B_model,
-              ema_g_B2A_model,
+        train(g_A_model,
+              g_B_model,
+              ema_g_A_model,
+              ema_g_B_model,
               d_A_model,
               d_B_model,
               train_data_prefetcher,
@@ -164,8 +163,7 @@ def main():
               adversarial_criterion,
               cycle_criterion,
               g_optimizer,
-              d_A_optimizer,
-              d_B_optimizer,
+              d_optimizer,
               fake_A_buffer,
               fake_B_buffer,
               epoch,
@@ -177,38 +175,37 @@ def main():
 
         # Update LR
         g_scheduler.step()
-        d_A_scheduler.step()
-        d_B_scheduler.step()
+        d_scheduler.step()
 
         is_last = (epoch + 1) == config["TRAIN"]["HYP"]["EPOCHS"]
         save_checkpoint({"epoch": epoch + 1,
-                         "state_dict": g_A2B_model.state_dict(),
-                         "ema_state_dict": ema_g_A2B_model.state_dict(),
+                         "state_dict": g_A_model.state_dict(),
+                         "ema_state_dict": ema_g_A_model.state_dict(),
                          "optimizer": g_optimizer.state_dict(),
                          "scheduler": g_scheduler.state_dict()},
-                        f"g_A2B_epoch_{epoch + 1}.pth.tar",
+                        f"g_A_epoch_{epoch + 1}.pth.tar",
                         samples_dir,
                         results_dir,
-                        "g_A2B_best.pth.tar",
-                        "g_A2B_last.pth.tar",
+                        "g_A_best.pth.tar",
+                        "g_A_last.pth.tar",
                         True,
                         is_last)
         save_checkpoint({"epoch": epoch + 1,
-                         "state_dict": g_B2A_model.state_dict(),
-                         "ema_state_dict": ema_g_B2A_model.state_dict(),
+                         "state_dict": g_B_model.state_dict(),
+                         "ema_state_dict": ema_g_B_model.state_dict(),
                          "optimizer": g_optimizer.state_dict(),
                          "scheduler": g_scheduler.state_dict()},
-                        f"g_B2A_epoch_{epoch + 1}.pth.tar",
+                        f"g_B_epoch_{epoch + 1}.pth.tar",
                         samples_dir,
                         results_dir,
-                        "g_B2A_best.pth.tar",
-                        "g_B2A_last.pth.tar",
+                        "g_B_best.pth.tar",
+                        "g_B_last.pth.tar",
                         True,
                         is_last)
         save_checkpoint({"epoch": epoch + 1,
                          "state_dict": d_A_model.state_dict(),
-                         "optimizer": d_A_optimizer.state_dict(),
-                         "scheduler": d_A_scheduler.state_dict()},
+                         "optimizer": d_optimizer.state_dict(),
+                         "scheduler": d_scheduler.state_dict()},
                         f"d_A_epoch_{epoch + 1}.pth.tar",
                         samples_dir,
                         results_dir,
@@ -218,8 +215,8 @@ def main():
                         is_last)
         save_checkpoint({"epoch": epoch + 1,
                          "state_dict": d_B_model.state_dict(),
-                         "optimizer": d_B_optimizer.state_dict(),
-                         "scheduler": d_B_scheduler.state_dict()},
+                         "optimizer": d_optimizer.state_dict(),
+                         "scheduler": d_scheduler.state_dict()},
                         f"d_B_epoch_{epoch + 1}.pth.tar",
                         samples_dir,
                         results_dir,
@@ -259,54 +256,54 @@ def build_model(
         config: Any,
         device: torch.device,
 ) -> [nn.Module, nn.Module, nn.Module, nn.Module, nn.Module, nn.Module]:
-    g_A2B_model = model.__dict__[config["MODEL"]["G"]["NAME"]](in_channels=config["MODEL"]["G"]["IN_CHANNELS"],
-                                                               out_channels=config["MODEL"]["G"]["OUT_CHANNELS"],
-                                                               channels=config["MODEL"]["G"]["CHANNELS"])
-    g_B2A_model = model.__dict__[config["MODEL"]["G"]["NAME"]](in_channels=config["MODEL"]["G"]["IN_CHANNELS"],
-                                                               out_channels=config["MODEL"]["G"]["OUT_CHANNELS"],
-                                                               channels=config["MODEL"]["G"]["CHANNELS"])
+    g_A_model = model.__dict__[config["MODEL"]["G"]["NAME"]](in_channels=config["MODEL"]["G"]["IN_CHANNELS"],
+                                                             out_channels=config["MODEL"]["G"]["OUT_CHANNELS"],
+                                                             channels=config["MODEL"]["G"]["CHANNELS"])
+    g_B_model = model.__dict__[config["MODEL"]["G"]["NAME"]](in_channels=config["MODEL"]["G"]["IN_CHANNELS"],
+                                                             out_channels=config["MODEL"]["G"]["OUT_CHANNELS"],
+                                                             channels=config["MODEL"]["G"]["CHANNELS"])
     d_A_model = model.__dict__[config["MODEL"]["D"]["NAME"]](in_channels=config["MODEL"]["D"]["IN_CHANNELS"],
                                                              out_channels=config["MODEL"]["D"]["OUT_CHANNELS"],
-                                                             channels=config["MODEL"]["D"]["CHANNELS"],
-                                                             image_size=config["MODEL"]["D"]["IMAGE_SIZE"])
+                                                             channels=config["MODEL"]["D"]["CHANNELS"])
     d_B_model = model.__dict__[config["MODEL"]["D"]["NAME"]](in_channels=config["MODEL"]["D"]["IN_CHANNELS"],
                                                              out_channels=config["MODEL"]["D"]["OUT_CHANNELS"],
-                                                             channels=config["MODEL"]["D"]["CHANNELS"],
-                                                             image_size=config["MODEL"]["D"]["IMAGE_SIZE"])
+                                                             channels=config["MODEL"]["D"]["CHANNELS"])
     # Create an Exponential Moving Average Model
     if config["MODEL"]["EMA"]["ENABLE"]:
         # Generate an exponential average model based on a generator to stabilize model training
         ema_decay = config["MODEL"]["EMA"]["DECAY"]
         ema_avg_fn = lambda averaged_model_parameter, model_parameter, num_averaged: \
             (1 - ema_decay) * averaged_model_parameter + ema_decay * model_parameter
-        ema_g_A2B_model = AveragedModel(g_A2B_model, device=device, avg_fn=ema_avg_fn)
-        ema_g_B2A_model = AveragedModel(g_B2A_model, device=device, avg_fn=ema_avg_fn)
+        ema_g_A_model = AveragedModel(g_A_model, device=device, avg_fn=ema_avg_fn)
+        ema_g_B_model = AveragedModel(g_B_model, device=device, avg_fn=ema_avg_fn)
     else:
-        ema_g_A2B_model = None
-        ema_g_B2A_model = None
+        ema_g_A_model = None
+        ema_g_B_model = None
 
-    g_A2B_model = g_A2B_model.to(device)
-    g_B2A_model = g_B2A_model.to(device)
-    ema_g_A2B_model = ema_g_A2B_model.to(device)
-    ema_g_B2A_model = ema_g_B2A_model.to(device)
+    g_A_model = g_A_model.to(device)
+    g_B_model = g_B_model.to(device)
+    ema_g_A_model = ema_g_A_model.to(device)
+    ema_g_B_model = ema_g_B_model.to(device)
     d_A_model = d_A_model.to(device)
     d_B_model = d_B_model.to(device)
 
-    return g_A2B_model, g_B2A_model, ema_g_A2B_model, ema_g_B2A_model, d_A_model, d_B_model
+    return g_A_model, g_B_model, ema_g_A_model, ema_g_B_model, d_A_model, d_B_model
 
 
 def define_loss(config: Any, device: torch.device) -> [nn.L1Loss, nn.MSELoss, nn.L1Loss]:
-    if config["TRAIN"]["LOSSES"]["IDENTITY_LOSS"]["NAME"] == "L1Loss":
+    if config["TRAIN"]["LOSSES"]["IDENTITY_LOSS"]["NAME"] == "l1":
         identity_criterion = nn.L1Loss()
     else:
         raise NotImplementedError(f"Loss {config['TRAIN']['LOSSES']['IDENTITY_LOSS']['NAME']} is not implemented.")
 
-    if config["TRAIN"]["LOSSES"]["ADVERSARIAL_LOSS"]["NAME"] == "MSELoss":
+    if config["TRAIN"]["LOSSES"]["ADVERSARIAL_LOSS"]["NAME"] == "lsgan":
         adversarial_criterion = nn.MSELoss()
+    elif config["TRAIN"]["LOSSES"]["ADVERSARIAL_LOSS"]["NAME"] == "vanilla":
+        adversarial_criterion = nn.BCEWithLogitsLoss()
     else:
         raise NotImplementedError(f"Loss {config['TRAIN']['LOSSES']['ADVERSARIAL_LOSS']['NAME']} is not implemented.")
 
-    if config["TRAIN"]["LOSSES"]["CYCLE_LOSS"]["NAME"] == "L1Loss":
+    if config["TRAIN"]["LOSSES"]["CYCLE_LOSS"]["NAME"] == "l1":
         cycle_criterion = nn.L1Loss()
     else:
         raise NotImplementedError(f"Loss {config['TRAIN']['LOSSES']['CYCLE_LOSS']['NAME']} is not implemented.")
@@ -319,56 +316,49 @@ def define_loss(config: Any, device: torch.device) -> [nn.L1Loss, nn.MSELoss, nn
 
 
 def define_optimizer(
-        g_A2B_model: nn.Module,
-        g_B2A_model: nn.Module,
+        g_A_model: nn.Module,
+        g_B_model: nn.Module,
         d_A_model: nn.Module,
         d_B_model: nn.Module,
         config: Any,
-) -> [optim.Adam, optim.Adam, optim.Adam]:
+) -> [optim, optim]:
     if config["TRAIN"]["OPTIM"]["NAME"] == "Adam":
-        g_optimizer = optim.Adam(itertools.chain(g_A2B_model.parameters(), g_B2A_model.parameters()),
+        g_optimizer = optim.Adam(itertools.chain(g_A_model.parameters(), g_B_model.parameters()),
                                  config["TRAIN"]["OPTIM"]["LR"],
                                  config["TRAIN"]["OPTIM"]["BETAS"],
                                  config["TRAIN"]["OPTIM"]["EPS"],
                                  config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
-        d_A_optimizer = optim.Adam(d_A_model.parameters(),
-                                   config["TRAIN"]["OPTIM"]["LR"],
-                                   config["TRAIN"]["OPTIM"]["BETAS"],
-                                   config["TRAIN"]["OPTIM"]["EPS"],
-                                   config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
-        d_B_optimizer = optim.Adam(d_B_model.parameters(),
-                                   config["TRAIN"]["OPTIM"]["LR"],
-                                   config["TRAIN"]["OPTIM"]["BETAS"],
-                                   config["TRAIN"]["OPTIM"]["EPS"],
-                                   config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
+        d_optimizer = optim.Adam(itertools.chain(d_A_model.parameters(), d_B_model.parameters()),
+                                 config["TRAIN"]["OPTIM"]["LR"],
+                                 config["TRAIN"]["OPTIM"]["BETAS"],
+                                 config["TRAIN"]["OPTIM"]["EPS"],
+                                 config["TRAIN"]["OPTIM"]["WEIGHT_DECAY"])
     else:
         raise NotImplementedError(f"Optimizer {config['TRAIN']['OPTIM']['NAME']} is not implemented.")
 
-    return g_optimizer, d_A_optimizer, d_B_optimizer
+    return g_optimizer, d_optimizer
 
 
 def define_scheduler(
         g_optimizer: optim.Adam,
-        d_A_optimizer: optim.Adam,
-        d_B_optimizer: optim.Adam,
+        d_optimizer: optim.Adam,
         config: Any,
-) -> [lr_scheduler.LambdaLR, lr_scheduler.LambdaLR, lr_scheduler.LambdaLR]:
+) -> [lr_scheduler, lr_scheduler]:
     if config["TRAIN"]["LR_SCHEDULER"]["NAME"] == "LambdaLR":
         lr_lambda = DecayLR(config["TRAIN"]["HYP"]["EPOCHS"], 0, config["TRAIN"]["LR_SCHEDULER"]["DECAY_EPOCHS"]).step
-        d_A_scheduler = lr_scheduler.LambdaLR(d_A_optimizer, lr_lambda)
-        d_B_scheduler = lr_scheduler.LambdaLR(d_B_optimizer, lr_lambda)
         g_scheduler = lr_scheduler.LambdaLR(g_optimizer, lr_lambda)
+        d_scheduler = lr_scheduler.LambdaLR(d_optimizer, lr_lambda)
     else:
         raise NotImplementedError(f"Scheduler {config['TRAIN']['LR_SCHEDULER']['NAME']} is not implemented.")
 
-    return g_scheduler, d_A_scheduler, d_B_scheduler
+    return g_scheduler, d_scheduler
 
 
 def train(
-        g_A2B_model: nn.Module,
-        g_B2A_model: nn.Module,
-        ema_g_A2B_model: nn.Module,
-        ema_g_B2A_model: nn.Module,
+        g_A_model: nn.Module,
+        g_B_model: nn.Module,
+        ema_g_A_model: nn.Module,
+        ema_g_B_model: nn.Module,
         d_A_model: nn.Module,
         d_B_model: nn.Module,
         train_data_prefetcher: CUDAPrefetcher,
@@ -376,8 +366,7 @@ def train(
         adversarial_criterion: nn.MSELoss,
         cycle_criterion: nn.L1Loss,
         g_optimizer: optim.Adam,
-        d_A_optimizer: optim.Adam,
-        d_B_optimizer: optim.Adam,
+        d_optimizer: optim.Adam,
         fake_A_buffer: ReplayBuffer,
         fake_B_buffer: ReplayBuffer,
         epoch: int,
@@ -401,8 +390,8 @@ def train(
     # Put the generative network model in training mode
     d_A_model.train()
     d_B_model.train()
-    g_A2B_model.train()
-    g_B2A_model.train()
+    g_A_model.train()
+    g_B_model.train()
 
     identity_weight = torch.Tensor(config["TRAIN"]["LOSSES"]["IDENTITY_LOSS"]["WEIGHT"]).to(device)
     adversarial_weight = torch.Tensor(config["TRAIN"]["LOSSES"]["ADVERSARIAL_LOSS"]["WEIGHT"]).to(device)
@@ -414,6 +403,8 @@ def train(
     # Initialize the data loader and load the first batch of data
     train_data_prefetcher.reset()
     batch_data = train_data_prefetcher.next()
+
+    batch_size = batch_data["src"].size(0)
 
     # Get the initialization training time
     end = time.time()
@@ -434,10 +425,6 @@ def train(
         real_image_A, real_image_B = random_vertically_flip_torch(real_image_A, real_image_B)
         real_image_A, real_image_B = random_horizontally_flip_torch(real_image_A, real_image_B)
 
-        batch_size = real_image_A.size(0)
-        real_label = torch.full((batch_size, 1), 1, device=device, dtype=torch.float32)
-        fake_label = torch.full((batch_size, 1), 0, device=device, dtype=torch.float32)
-
         ##############################################
         # (1) Update G network: Generators A2B and B2A
         ##############################################
@@ -445,30 +432,37 @@ def train(
         # Initialize generator gradients
         g_optimizer.zero_grad(set_to_none=True)
 
+        # During generator model training, disable discriminator model backpropagation
+        for d_a_parameters, d_b_parameters in zip(d_A_model.parameters(), d_B_model.parameters()):
+            d_a_parameters.requires_grad = False
+            d_b_parameters.requires_grad = False
+
         # Mixed precision training
         with amp.autocast():
             # Identity loss
-            # G_B2A(A) should equal A if real A is fed
-            identity_image_A = g_B2A_model(real_image_A)
+            # g_B(A) should equal A if real A is fed
+            identity_image_A = g_B_model(real_image_A)
             loss_identity_A = torch.sum(torch.mul(identity_weight, identity_criterion(identity_image_A, real_image_A)))
-            # G_A2B(B) should equal B if real B is fed
-            identity_image_B = g_B2A_model(real_image_B)
+            # g_A(B) should equal B if real B is fed
+            identity_image_B = g_B_model(real_image_B)
             loss_identity_B = torch.sum(torch.mul(identity_weight, identity_criterion(identity_image_B, real_image_B)))
 
             # GAN loss
             # GAN loss D_A(G_A(A))
-            fake_image_A = g_B2A_model(real_image_B)
+            fake_image_A = g_B_model(real_image_B)
             fake_output_A = d_A_model(fake_image_A)
+            real_label = torch.tensor(0).expand_as(fake_output_A).to(device, non_blocking=True)
             loss_adversarial_B2A = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_A, real_label)))
             # GAN loss D_B(G_B(B))
-            fake_image_B = g_A2B_model(real_image_A)
+            fake_image_B = g_A_model(real_image_A)
             fake_output_B = d_B_model(fake_image_B)
+            fake_label = torch.tensor(1).expand_as(fake_output_B).to(device, non_blocking=True)
             loss_adversarial_A2B = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_B, real_label)))
 
             # Cycle loss
-            recovered_image_A = g_B2A_model(fake_image_B)
+            recovered_image_A = g_B_model(fake_image_B)
             loss_cycle_ABA = torch.sum(torch.mul(cycle_weight, cycle_criterion(recovered_image_A, real_image_A)))
-            recovered_image_B = g_A2B_model(fake_image_A)
+            recovered_image_B = g_A_model(fake_image_A)
             loss_cycle_BAB = torch.sum(torch.mul(cycle_weight, cycle_criterion(recovered_image_B, real_image_B)))
 
             # Combined loss and calculate gradients
@@ -481,8 +475,8 @@ def train(
         scaler.update()
 
         # Update EMA
-        ema_g_A2B_model.update_parameters(ema_g_A2B_model)
-        ema_g_B2A_model.update_parameters(ema_g_B2A_model)
+        ema_g_A_model.update_parameters(ema_g_A_model)
+        ema_g_B_model.update_parameters(ema_g_B_model)
 
         fake_image_A = fake_A_buffer.push_and_pop(fake_image_A)
         fake_image_B = fake_B_buffer.push_and_pop(fake_image_B)
@@ -492,16 +486,22 @@ def train(
         ##############################################
 
         # Initialize discriminator gradients
-        d_A_optimizer.zero_grad(set_to_none=True)
+        d_optimizer.zero_grad(set_to_none=True)
+
+        # During discriminator model training, enable discriminator model backpropagation
+        for d_parameters in d_A_model.parameters():
+            d_parameters.requires_grad = True
 
         # Mixed precision training
         with amp.autocast():
             # Real A image loss
             real_output_A = d_A_model(real_image_A)
+            real_label = torch.tensor(1).expand_as(real_output_A).to(device, non_blocking=True)
             loss_real_A = adversarial_criterion(real_output_A, real_label)
 
             # Fake A image loss
             fake_output_A = d_A_model(fake_image_A.detach())
+            fake_label = torch.tensor(0).expand_as(fake_output_A).to(device, non_blocking=True)
             loss_fake_A = adversarial_criterion(fake_output_A, fake_label)
 
             # Combined loss and calculate gradients
@@ -509,25 +509,28 @@ def train(
 
         # Backpropagation
         scaler.scale(loss_d_A).backward()
-        # update generator weights
-        scaler.step(d_A_optimizer)
-        scaler.update()
 
         ##############################################
         # (3) Update D network: Discriminator B
         ##############################################
 
         # Initialize discriminator gradients
-        d_B_optimizer.zero_grad(set_to_none=True)
+        d_optimizer.zero_grad(set_to_none=True)
+
+        # During discriminator model training, enable discriminator model backpropagation
+        for d_parameters in d_B_model.parameters():
+            d_parameters.requires_grad = True
 
         # Mixed precision training
         with amp.autocast():
             # Real B image loss
             real_output_B = d_B_model(real_image_B)
+            real_label = torch.tensor(1).expand_as(real_output_B).to(device, non_blocking=True)
             loss_real_B = adversarial_criterion(real_output_B, real_label)
 
             # Fake B image loss
             fake_output_B = d_B_model(fake_image_B.detach())
+            fake_label = torch.tensor(0).expand_as(fake_output_B).to(device, non_blocking=True)
             loss_fake_B = adversarial_criterion(fake_output_B, fake_label)
 
             # Combined loss and calculate gradients
@@ -536,7 +539,7 @@ def train(
         # Backpropagation
         scaler.scale(loss_d_B).backward()
         # update generator weights
-        scaler.step(d_B_optimizer)
+        scaler.step(d_optimizer)
         scaler.update()
 
         # Statistical loss value for terminal data output
@@ -555,9 +558,9 @@ def train(
             writer.add_scalar("Train/D(A)_Loss", loss_d_A.item(), total_batch_index)
             writer.add_scalar("Train/D(B)_Loss", loss_d_B.item(), total_batch_index)
             writer.add_scalar("Train/D_Loss", (loss_d_A + loss_d_B).item(), total_batch_index)
-            writer.add_scalar("Train/G_Identity_Loss", (loss_identity_A + loss_identity_B).item(), total_batch_index)
-            writer.add_scalar("Train/G_Adversarial_Loss", (loss_adversarial_A2B + loss_adversarial_B2A).item(), total_batch_index)
-            writer.add_scalar("Train/G_Cycle_Loss", (loss_cycle_ABA + loss_cycle_BAB).item(), total_batch_index)
+            writer.add_scalar("Train/Identity_Loss", (loss_identity_A + loss_identity_B).item(), total_batch_index)
+            writer.add_scalar("Train/Adversarial_Loss", (loss_adversarial_A2B + loss_adversarial_B2A).item(), total_batch_index)
+            writer.add_scalar("Train/Cycle_Loss", (loss_cycle_ABA + loss_cycle_BAB).item(), total_batch_index)
             writer.add_scalar("Train/G_Loss", g_loss.item(), total_batch_index)
             progress.display(batch_index + 1)
 
@@ -577,8 +580,8 @@ def train(
                        normalize=True)
 
             # Normalize [-1, 1] to [0, 1]
-            fake_image_A = 0.5 * (g_B2A_model(real_image_B).data + 1.0)
-            fake_image_B = 0.5 * (g_A2B_model(real_image_A).data + 1.0)
+            fake_image_A = 0.5 * (g_B_model(real_image_B).data + 1.0)
+            fake_image_B = 0.5 * (g_A_model(real_image_A).data + 1.0)
 
             save_image(fake_image_A.detach(),
                        f"./samples/{config['EXP_NAME']}/A/fake_image_A_epoch_{epoch:04d}.jpg",
