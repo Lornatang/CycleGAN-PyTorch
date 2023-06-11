@@ -456,7 +456,7 @@ def train(
             # GAN loss D_B(G_B(B))
             fake_image_B = g_A_model(real_image_A)
             fake_output_B = d_B_model(fake_image_B)
-            fake_label = torch.tensor(1).expand_as(fake_output_B).to(device, non_blocking=True)
+            real_label = torch.tensor(0).expand_as(fake_output_B).to(device, non_blocking=True)
             loss_adversarial_A2B = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_B, real_label)))
 
             # Cycle loss
