@@ -23,11 +23,11 @@ from utils import load_pretrained_state_dict
 
 def main(args):
     device = torch.device(args.device)
-    g_model = model.__dict__[args.model_arch_name]()
+    g_model = model.__dict__[args.model_arch_name](in_channels=3, out_channels=3, channels=64)
     g_model = g_model.to(device)
 
     # Load image
-    image = preprocess_one_image(args.inputs_path, True, False, device)
+    image = preprocess_one_image(args.inputs_path, True, args.half, device)
 
     # Load model weights
     g_model = load_pretrained_state_dict(g_model, args.model_weights_path)
@@ -50,7 +50,9 @@ if __name__ == "__main__":
     parser.add_argument("--model_weights_path", type=str,
                         default="./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-e23a4e23.pth.tar",
                         help="Generator model weights path.  Default: ``./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-e23a4e23.pth.tar``")
-    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda:0"],
+    parser.add_argument("--half", action="store_true", default=False,
+                        help="Use half precision. Default: ``False``")
+    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", 'cuda:0'],
                         help="Device. Default: ``cpu``")
     args = parser.parse_args()
 

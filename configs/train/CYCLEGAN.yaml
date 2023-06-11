@@ -30,8 +30,7 @@ TRAIN:
     DST_IMAGE_PATH: ./data/apple2orange/trainB
     UNPAIRED: True
 
-    RESIZED_IMAGE_SIZE: 256
-    CROP_IMAGE_SIZE: 70
+    IMAGE_SIZE: 256
 
   # Model file address, used for pre-training and recovery training
   CHECKPOINT:

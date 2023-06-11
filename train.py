@@ -235,7 +235,7 @@ def load_datasets(
         config["TRAIN"]["DATASET"]["SRC_IMAGE_PATH"],
         config["TRAIN"]["DATASET"]["DST_IMAGE_PATH"],
         config["TRAIN"]["DATASET"]["UNPAIRED"],
-        config["TRAIN"]["DATASET"]["RESIZED_IMAGE_SIZE"],
+        config["TRAIN"]["DATASET"]["IMAGE_SIZE"],
     )
     # Generator all dataloader
     train_dataloader = DataLoader(train_datasets,
@@ -420,7 +420,7 @@ def train(
         # image data augmentation
         real_image_A, real_image_B = random_crop_torch(real_image_A,
                                                        real_image_B,
-                                                       config["TRAIN"]["DATASET"]["RESIZED_IMAGE_SIZE"])
+                                                       config["TRAIN"]["DATASET"]["IMAGE_SIZE"])
         real_image_A, real_image_B = random_rotate_torch(real_image_A, real_image_B, [0, 90, 180, 270])
         real_image_A, real_image_B = random_vertically_flip_torch(real_image_A, real_image_B)
         real_image_A, real_image_B = random_horizontally_flip_torch(real_image_A, real_image_B)
@@ -433,9 +433,10 @@ def train(
         g_optimizer.zero_grad(set_to_none=True)
 
         # During generator model training, disable discriminator model backpropagation
-        for d_a_parameters, d_b_parameters in zip(d_A_model.parameters(), d_B_model.parameters()):
-            d_a_parameters.requires_grad = False
-            d_b_parameters.requires_grad = False
+        for d_parameters in d_A_model.parameters():
+            d_parameters.requires_grad = False
+        for d_parameters in d_B_model.parameters():
+            d_parameters.requires_grad = False
 
         # Mixed precision training
         with amp.autocast():
@@ -451,12 +452,12 @@ def train(
             # GAN loss D_A(G_A(A))
             fake_image_A = g_B_model(real_image_B)
             fake_output_A = d_A_model(fake_image_A)
-            real_label = torch.tensor(0).expand_as(fake_output_A).to(device, non_blocking=True)
+            real_label = torch.tensor(1).expand_as(fake_output_A).to(device, non_blocking=True)
             loss_adversarial_B2A = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_A, real_label)))
             # GAN loss D_B(G_B(B))
             fake_image_B = g_A_model(real_image_A)
             fake_output_B = d_B_model(fake_image_B)
-            real_label = torch.tensor(0).expand_as(fake_output_B).to(device, non_blocking=True)
+            real_label = torch.tensor(1).expand_as(fake_output_B).to(device, non_blocking=True)
             loss_adversarial_A2B = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_B, real_label)))
 
             # Cycle loss
