@@ -54,7 +54,7 @@ TRAIN:
     PIN_MEMORY: True
     PERSISTENT_WORKERS: True
 
-    EPOCHS: 200
+    EPOCHS: 100
 
   OPTIM:
     NAME: Adam
@@ -65,7 +65,7 @@ TRAIN:
 
   LR_SCHEDULER:
     NAME: LambdaLR
-    DECAY_EPOCHS: 100
+    DECAY_EPOCHS: 50
 
   # Loss function
   LOSSES:
