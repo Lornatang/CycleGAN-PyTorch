@@ -440,34 +440,32 @@ def train(
 
         # Mixed precision training
         with amp.autocast():
+            # Generator fake and cycle image
+            fake_image_B = g_A_model(real_image_A)
+            recovered_image_A = g_B_model(fake_image_B)
+            fake_image_A = g_B_model(real_image_B)
+            recovered_image_B = g_A_model(fake_image_A)
+
             # Identity loss
-            # g_B(A) should equal A if real A is fed
-            identity_image_A = g_B_model(real_image_A)
-            loss_identity_A = torch.sum(torch.mul(identity_weight, identity_criterion(identity_image_A, real_image_A)))
-            # g_A(B) should equal B if real B is fed
-            identity_image_B = g_B_model(real_image_B)
-            loss_identity_B = torch.sum(torch.mul(identity_weight, identity_criterion(identity_image_B, real_image_B)))
+            identity_image_A = g_A_model(real_image_B)
+            loss_identity_A = torch.sum(torch.mul(identity_weight, identity_criterion(identity_image_A, real_image_B)))
+            identity_image_B = g_B_model(real_image_A)
+            loss_identity_B = torch.sum(torch.mul(identity_weight, identity_criterion(identity_image_B, real_image_A)))
 
             # GAN loss
-            # GAN loss D_A(G_A(A))
-            fake_image_A = g_B_model(real_image_B)
-            fake_output_A = d_A_model(fake_image_A)
+            fake_output_A = d_A_model(fake_image_B)
             real_label = torch.tensor(1).expand_as(fake_output_A).to(device, non_blocking=True)
-            loss_adversarial_B2A = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_A, real_label)))
-            # GAN loss D_B(G_B(B))
-            fake_image_B = g_A_model(real_image_A)
-            fake_output_B = d_B_model(fake_image_B)
+            loss_adversarial_A = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_A, real_label)))
+            fake_output_B = d_B_model(fake_image_A)
             real_label = torch.tensor(1).expand_as(fake_output_B).to(device, non_blocking=True)
-            loss_adversarial_A2B = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_B, real_label)))
+            loss_adversarial_B = torch.sum(torch.mul(adversarial_weight, adversarial_criterion(fake_output_B, real_label)))
 
             # Cycle loss
-            recovered_image_A = g_B_model(fake_image_B)
-            loss_cycle_ABA = torch.sum(torch.mul(cycle_weight, cycle_criterion(recovered_image_A, real_image_A)))
-            recovered_image_B = g_A_model(fake_image_A)
-            loss_cycle_BAB = torch.sum(torch.mul(cycle_weight, cycle_criterion(recovered_image_B, real_image_B)))
+            loss_cycle_A = torch.sum(torch.mul(cycle_weight, cycle_criterion(recovered_image_A, real_image_A)))
+            loss_cycle_B = torch.sum(torch.mul(cycle_weight, cycle_criterion(recovered_image_B, real_image_B)))
 
             # Combined loss and calculate gradients
-            g_loss = loss_identity_A + loss_identity_B + loss_adversarial_A2B + loss_adversarial_B2A + loss_cycle_ABA + loss_cycle_BAB
+            g_loss = loss_identity_A + loss_identity_B + loss_adversarial_A + loss_adversarial_B + loss_cycle_A + loss_cycle_B
 
         # Backpropagation
         scaler.scale(g_loss).backward()
@@ -496,12 +494,12 @@ def train(
         # Mixed precision training
         with amp.autocast():
             # Real A image loss
-            real_output_A = d_A_model(real_image_A)
+            real_output_A = d_A_model(real_image_B)
             real_label = torch.tensor(1).expand_as(real_output_A).to(device, non_blocking=True)
             loss_real_A = adversarial_criterion(real_output_A, real_label)
 
             # Fake A image loss
-            fake_output_A = d_A_model(fake_image_A.detach())
+            fake_output_A = d_A_model(fake_image_B.detach())
             fake_label = torch.tensor(0).expand_as(fake_output_A).to(device, non_blocking=True)
             loss_fake_A = adversarial_criterion(fake_output_A, fake_label)
 
@@ -525,12 +523,12 @@ def train(
         # Mixed precision training
         with amp.autocast():
             # Real B image loss
-            real_output_B = d_B_model(real_image_B)
+            real_output_B = d_B_model(real_image_A)
             real_label = torch.tensor(1).expand_as(real_output_B).to(device, non_blocking=True)
             loss_real_B = adversarial_criterion(real_output_B, real_label)
 
             # Fake B image loss
-            fake_output_B = d_B_model(fake_image_B.detach())
+            fake_output_B = d_B_model(fake_image_A.detach())
             fake_label = torch.tensor(0).expand_as(fake_output_B).to(device, non_blocking=True)
             loss_fake_B = adversarial_criterion(fake_output_B, fake_label)
 
@@ -560,8 +558,8 @@ def train(
             writer.add_scalar("Train/D(B)_Loss", loss_d_B.item(), total_batch_index)
             writer.add_scalar("Train/D_Loss", (loss_d_A + loss_d_B).item(), total_batch_index)
             writer.add_scalar("Train/Identity_Loss", (loss_identity_A + loss_identity_B).item(), total_batch_index)
-            writer.add_scalar("Train/Adversarial_Loss", (loss_adversarial_A2B + loss_adversarial_B2A).item(), total_batch_index)
-            writer.add_scalar("Train/Cycle_Loss", (loss_cycle_ABA + loss_cycle_BAB).item(), total_batch_index)
+            writer.add_scalar("Train/Adversarial_Loss", (loss_adversarial_B + loss_adversarial_A).item(), total_batch_index)
+            writer.add_scalar("Train/Cycle_Loss", (loss_cycle_A + loss_cycle_B).item(), total_batch_index)
             writer.add_scalar("Train/G_Loss", g_loss.item(), total_batch_index)
             progress.display(batch_index + 1)
 
