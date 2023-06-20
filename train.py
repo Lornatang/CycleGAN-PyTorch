@@ -474,8 +474,8 @@ def train(
         scaler.update()
 
         # Update EMA
-        ema_g_A_model.update_parameters(ema_g_A_model)
-        ema_g_B_model.update_parameters(ema_g_B_model)
+        ema_g_A_model.update_parameters(g_A_model)
+        ema_g_B_model.update_parameters(g_B_model)
 
         fake_image_A = fake_A_buffer.push_and_pop(fake_image_A)
         fake_image_B = fake_B_buffer.push_and_pop(fake_image_B)
