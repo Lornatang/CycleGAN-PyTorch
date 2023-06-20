@@ -67,15 +67,15 @@ class CycleNet(nn.Module):
             # Initial convolution block
             nn.ReflectionPad2d(3),
             nn.Conv2d(in_channels, channels, (7, 7), (1, 1), (0, 0)),
-            nn.InstanceNorm2d(channels),
+            nn.InstanceNorm2d(channels, track_running_stats=True),
             nn.ReLU(True),
 
             # Downsampling
             nn.Conv2d(channels, int(channels * 2), (3, 3), (2, 2), (1, 1)),
-            nn.InstanceNorm2d(int(channels * 2)),
+            nn.InstanceNorm2d(int(channels * 2), track_running_stats=True),
             nn.ReLU(True),
             nn.Conv2d(int(channels * 2), int(channels * 4), (3, 3), (2, 2), (1, 1)),
-            nn.InstanceNorm2d(int(channels * 4)),
+            nn.InstanceNorm2d(int(channels * 4), track_running_stats=True),
             nn.ReLU(True),
 
             # Residual blocks
@@ -91,10 +91,10 @@ class CycleNet(nn.Module):
 
             # Upsampling
             nn.ConvTranspose2d(int(channels * 4), int(channels * 2), (3, 3), (2, 2), (1, 1), (1, 1)),
-            nn.InstanceNorm2d(int(channels * 2)),
+            nn.InstanceNorm2d(int(channels * 2), track_running_stats=True),
             nn.ReLU(True),
             nn.ConvTranspose2d(int(channels * 2), channels, (3, 3), (2, 2), (1, 1), (1, 1)),
-            nn.InstanceNorm2d(channels),
+            nn.InstanceNorm2d(channels, track_running_stats=True),
             nn.ReLU(True),
 
             # Output layer
@@ -116,11 +116,11 @@ class _ResidualBlock(nn.Module):
         self.res = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(channels, channels, (3, 3), (1, 1), (0, 0)),
-            nn.InstanceNorm2d(channels),
+            nn.InstanceNorm2d(channels, track_running_stats=True),
             nn.ReLU(True),
             nn.ReflectionPad2d(1),
             nn.Conv2d(channels, channels, (3, 3), (1, 1), (0, 0)),
-            nn.InstanceNorm2d(channels),
+            nn.InstanceNorm2d(channels, track_running_stats=True),
         )
 
     def forward(self, x: Tensor) -> Tensor:

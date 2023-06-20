@@ -30,7 +30,7 @@ def main(args):
     image = preprocess_one_image(args.inputs_path, True, args.half, device)
 
     # Load model weights
-    g_model = load_pretrained_state_dict(g_model, args.model_weights_path)
+    g_model = load_pretrained_state_dict(g_model, False, args.model_weights_path)
     g_model.eval()
 
     with torch.no_grad():
@@ -48,8 +48,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_arch_name", type=str, default="cyclenet",
                         help="Generator arch model name.  Default: ``cyclenet``")
     parser.add_argument("--model_weights_path", type=str,
-                        default="./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-e23a4e23.pth.tar",
-                        help="Generator model weights path.  Default: ``./results/pretrained_models/apple2orange/CycleNet_A2B-apple2orange-e23a4e23.pth.tar``")
+                        default="./results/pretrained_models/CycleGAN-apple2orange.pth.tar",
+                        help="Generator model weights path.  Default: ``./results/pretrained_models/CycleGAN-apple2orange.pth.tar``")
     parser.add_argument("--half", action="store_true", default=False,
                         help="Use half precision. Default: ``False``")
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", 'cuda:0'],
