@@ -43,8 +43,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--inputs_path", type=str, default="./figure/apple.jpg",
                         help="Input image path. Default: ``./figure/apple.jpg``")
-    parser.add_argument("--output_path", type=str, default="./figure/fake_apple.jpg",
-                        help="Output image path. Default: ``./figure/fake_apple.jpg``")
+    parser.add_argument("--output_path", type=str, default="./figure/fake_orange.jpg",
+                        help="Output image path. Default: ``./figure/fake_orange.jpg``")
     parser.add_argument("--model_arch_name", type=str, default="cyclenet",
                         help="Generator arch model name.  Default: ``cyclenet``")
     parser.add_argument("--model_weights_path", type=str,

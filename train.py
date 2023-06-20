@@ -42,7 +42,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path",
                         type=str,
-                        default="./configs/train/CYCLEGAN.yaml",
+                        default="./configs/CYCLEGAN.yaml",
                         help="Path to train config file.")
     args = parser.parse_args()
 
