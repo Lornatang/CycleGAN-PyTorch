@@ -16,7 +16,7 @@ This repository contains an op-for-op PyTorch reimplementation of [Unpaired Imag
     - [Result](#result)
     - [Contributing](#contributing)
     - [Credit](#credit)
-        - [Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network](#photo-realistic-single-image-super-resolution-using-a-generative-adversarial-network)
+        - [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks](#unpaired-image-to-image-translation-using-cycle-consistent-adversarial-networks)
 
 ## Download weights
 
