@@ -3,5 +3,5 @@ torchvision==0.15.2+cu118
 numpy==1.24.3
 PyYAML==6.0
 typing==3.7.4.3
-opencv-python==4.7.0.72
+opencv-python==4.8.1.78
 natsort==8.3.1
